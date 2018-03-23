@@ -1,10 +1,12 @@
 //+++++++++++++++++++++++++++
 //Author: Thomas Androxman
-//Date  : Oct/2017
+//Date  : Feb/2018
 //+++++++++++++++++++++++++++
-//This Library has: TypeCamera, TypeTmatrix, TypeXYZw, TypeCamera2D, TypeKinematics, TypeColor, TypeOscillator, TypeSlider, IsArray, GetCSScolor, GetArrRGB, Say, InitCanvas, ClipValue
-//                    TypeSurface, TypeSurfaceNormals, TypeSurfaceTextureCoord, TypePolyline, TypeBezierCurve
-//                    TypeMaterial
+//This Library has: 
+//     Global Func: IsArray, IsString, XOR, ArrCompare, GetCSScolor, PaddedNumber, GetPathComponents, GetArrRGB, Say, InitCanvas, ClipValue
+//   Class/Objects: TypeKinematics, TypeColor, TypeOscillator, TypeSlider, TypeXYZw, TypeBoundingBox, TypeCentroid, TypePlane, TypeTmatrix, TypeCamera2D(depracated), 
+//                  TypeCamera, TypeCameraOperator, TypeText, TypeCurve, TypeSurface, TypeSurfaceNormals, TypeSurfaceTextureCoord, TypeLegacyMaterial, 
+//                  TypeSceneObjectAppearance, TypeSurfaceProperties, TypeCurveProperties, TypeTextProperties, TypePointLight, TypeSceneObject, TypeScene, TypeFile, TypeImage, TypeOBJFileLoader
 //NOTE: This library is kept *theoretical* and fundamental; building blocks for other libraries. (Does not contain HTML specific functions (canvas etc), or WebGL specific.) 
 //+++++++++++++++++++++++++++
 
@@ -1080,7 +1082,7 @@ function TypeTmatrix (incomingData)
    this.SetEqualTo (incomingData);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeCamera2D(canvCtx,posX,posY,maxX,maxY,minX,minY) 
+function TypeCamera2D(canvCtx,posX,posY,maxX,maxY,minX,minY)  //Depracated
 {  //Camera Position defined as the upper left corner of its view
    //max is defined as how far the upper left corner can travel
 

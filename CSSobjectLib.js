@@ -1,8 +1,8 @@
 //+++++++++++++++++++++++++++
 //Author: Thomas Androxman
-//Date  : Mar/2016
+//Date  : Feb/2018
 //+++++++++++++++++++++++++++
-//Contains: TypeSpringCSS, TypeTriggerArea, TypeMenuCSS, TypeCSSobject
+//Contains: TypeSpringCSS, TypeTriggerArea, TypeMenuCSS, TypeCSSobject, TypeTriggerArea, TypeSpringCSS, TypeUserInputSensor
 //DependsOn: BasicLib.js
 
 //===================================================================================================================================================
@@ -237,7 +237,7 @@ function TypeMenuCSS ()
     }      
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeTriggerArea(a,b,c,d)
+function TypeTriggerArea(a,b,c,d) 
 {
     var bodyObj;
     var shapeType;
@@ -305,7 +305,7 @@ function TypeTriggerArea(a,b,c,d)
     else if (arguments.length<=2 && a && a.toString().toLowerCase().indexOf("html")>-1 && a.toString().toLowerCase().indexOf("element")>-1) {this.SetBodyObject(new TypeCSSobject(a)); this.SetDOMtrigger(b);}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeSpringCSS (thisObj,T,elast,fromP,toP,offset,moveFade)
+function TypeSpringCSS (thisObj,T,elast,fromP,toP,offset,moveFade) 
 {
 
     //Private Properties

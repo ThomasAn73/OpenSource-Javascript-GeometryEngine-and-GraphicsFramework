@@ -1,8 +1,8 @@
 //+++++++++++++++++++++++++++
 //Author: Thomas Androxman
-//Date  : Oct/2017
+//Date  : Feb/2018
 //+++++++++++++++++++++++++++
-//Contains: TypeThickLine, TypeCanvasText, TypeImgLayer, TypeGrid, TypeEpicenter, TypeLabelledCircle
+//Contains: TypeProgressBar, TypeCanvasText, TypeTextLabel, TypeCanvasWebGLpainter, TypeCanvas2Dpainter
 //Depends on: BasicLib.js
 
 //Global Functions-----------------------------------------------------------------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 //+++++++++++++++++++++++++++
 //Author: Thomas Androxman
-//Date  : Dec/2017
+//Date  : Feb/2018
 //+++++++++++++++++++++++++++
-//Contains:
+//Contains: TypeNode, TypeEdge, TypeLinkedList, TypeDelaunayTriangulation, TypeHashGrid, TypePriorityQueue, TypeMazeGenerator, TypeRedBlackTree
 //DependsOn: BasicLib.js
 
 //Global Functions-----------------------------------------------------------------------------------------------------------------------------------
