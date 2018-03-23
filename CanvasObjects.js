@@ -18,10 +18,11 @@ function InitCanvas(CanvasHandleStr)
 
     //Note: document.querySelector is considered more powerfull (?) and returns a static collection (at the moment the method was called)
     var canvasOBJ = document.getElementById(CanvasHandleStr); if (!canvasOBJ) {return;}
-    var ObjStyle  = getComputedStyle(canvasOBJ); 
-
-    canvasOBJ.width  = (ObjStyle.width  == "inherit") ? parseInt(canvasOBJ.parentElement.clientWidth) : parseInt(ObjStyle.width);
-    canvasOBJ.height = (ObjStyle.height == "inherit") ? parseInt(canvasOBJ.parentElement.clientHeight): parseInt(ObjStyle.height);
+    var objStyle  = getComputedStyle(canvasOBJ); 
+    var parStyle  = getComputedStyle(canvasOBJ.parentElement);
+    
+    canvasOBJ.width  = (objStyle.width  == "inherit") ? parseInt(parStyle.clientWidth) : parseInt(objStyle.width);
+    canvasOBJ.height = (objStyle.height == "inherit") ? parseInt(parStyle.clientHeight): parseInt(objStyle.height);
 
     return canvasOBJ;
 }
@@ -29,49 +30,9 @@ function InitCanvas(CanvasHandleStr)
 //===================================================================================================================================================
 //Classes / Constructor-functions
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-//Draw an outlined thick line with rounded end caps
-function TypeThickLine (fromPoint, toPoint, width, inColor ,isCapInside, outline, outColor ) 
-{   
-   this.confined    = isCapInside;
-   this.coords      = [new TypeXYZw(fromPoint),new TypeXYZw(toPoint)];
-   this.thickness   = width;
-   this.fillColor   = new TypeColor(inColor);
-   this.strokeColor = new TypeColor(outColor);
-   this.outlineType = outline;
-   
-   this.Draw = function (camera, newCoords)
-   {
-      if (!IsArray(newCoords)) newCoords=this.coords; else if(!(newCoords[0] instanceof TypeXYZw)) newCoords=this.coords;
-      
-      var ctx       = camera.GetCanvasCtx();
-      var useStroke = (this.outlineType == "dashed" || this.outlineType=="solid") ? true : false;
-      
-      //Calculate the offset vector for thickness (the line could be drawn at any angle)
-      var lineVec = newCoords[1].Minus(newCoords[0]); 
-      var perpVec = lineVec.CrossProduct(new TypeXYZw(0,0,1)).ResizeTo(this.thickness/2); 
-      var deltaV  = (this.confined==true) ? lineVec.ResizeTo(this.thickness/2) : new TypeXYZw(0,0,0);
-      var perpAngle = perpVec.AngleXY();
-      var temp;
-      //
-      ctx.save();
-      ctx.beginPath(); temp = newCoords[0].Plus(perpVec).Plus(deltaV);            //beginning of the outline
-      ctx.moveTo(temp.x,temp.y); temp = newCoords[1].Plus(perpVec).Minus(deltaV); //end of the outline
-      ctx.lineTo(temp.x,temp.y); temp = newCoords[1].Minus(deltaV);               //center of end-cap
-      ctx.arc(temp.x,temp.y,this.thickness/2,perpAngle,perpAngle+Math.PI); temp = newCoords[1].Minus(perpVec).Minus(deltaV);
-      ctx.lineTo(temp.x,temp.y); temp = newCoords[0].Plus(deltaV);
-      ctx.arc(temp.x,temp.y,this.thickness/2,perpAngle+Math.PI,perpAngle);
-      ctx.lineWidth = Math.ceil(this.thickness/30); temp = this.thickness/5;
-      if (this.outlineType=="dashed") ctx.setLineDash([temp/1.5,temp/2]);
-      ctx.strokeStyle = this.strokeColor.GetCSScolor();
-      ctx.fillStyle = this.fillColor.GetCSScolor();
-      ctx.closePath();
-      
-      ctx.fill();
-      if (useStroke==true) ctx.stroke();
-      ctx.restore();
-   }
-}
-//---------------------------------------------------------------------------------------------------------------------------------------------------
+
+//NON KINEMATIC OBJECTS
+//NOTE: The following objects interact directly with a 2D canvas context in a static way (they are not expected to have kinematic behaviors relative to a camera)
 function TypeProgressBar (fromPoint, toPoint, width, barColor, backColor, outThickness, outColor)
 {
     var barCoordinates;
@@ -106,10 +67,8 @@ function TypeProgressBar (fromPoint, toPoint, width, barColor, backColor, outThi
     this.GetTimestamp = function ()           {return timeStamp;}
     this.SetProgress  = function (newRatio)   {progress  = ClipValue(newRatio,1,0);}
     this.SetTimestamp = function ()           {timeStamp = Date.now();}
-    this.Draw         = function (camera)
+    this.Draw         = function (ctx)
     {
-        var ctx = camera.GetCanvasCtx();
-
         ctx.save();
         ctx.lineCap = 'round';
         
@@ -158,19 +117,18 @@ function TypeCanvasText (thisText,txtSize,txtFont,atX,atY,txtColor,txtAlign,txtB
    this.useBackground  = useBack;
    this.backColor      = new TypeColor(backColor);
    this.backPadding    = padding;
-   this.kinematics     = new TypeKinematics(atX,atY);
+   this.position       = new TypeXYZw(atX,atY);
+   this.kinematics     = new TypeKinematics(atX,atY); //Depracated
 
    //Methods
    this.SetDatumPos   = function (x,y,z) {this.kinematics.SetDatumPos(x,y,z);}
-   this.Draw          = function (camera)
+   this.Draw          = function (ctx)
    {
-      var ctx    = camera.GetCanvasCtx();
-      
       //Setup the text font
       ctx.font        = this.textSize+"px "+this.textFont;
       ctx.textAlign   = this.textAlign;
       ctx.textBaseline= this.textBaseline;
-      
+     
       //Text rectangle coordinates
       var txtLen  = ctx.measureText(this.textStr).width;
       var textRectangle = [[this.kinematics.GetDatumPos().x,this.kinematics.GetDatumPos().y-1],[]];
@@ -202,213 +160,105 @@ function TypeCanvasText (thisText,txtSize,txtFont,atX,atY,txtColor,txtAlign,txtB
 
    }
 }
-//---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeImgLayer(sourceFile,atX,atY,atZ) 
-{
-   atX = Number(atX); if (Number.isNaN(atX)) {atX=0;}
-   atY = Number(atY); if (Number.isNaN(atY)) {atY=0;}
-   atZ = Number(atZ); if (Number.isNaN(atZ)) {atZ=0;}
-   
-   var kinematics = new TypeKinematics (atX,atY,atZ);
-   var imgObj     = new Image(); imgObj.src = sourceFile;
-   
-   //Methods
-   this.GetWidth      = function ()       {return imgObj.width;}
-   this.GetHeight     = function ()       {return imgObj.height;}
-   this.IsLoaded      = function ()       {return imgObj.complete;}
-   this.Draw          = function (camera)
-   {
-      var imgPos      = kinematics.GetCurrentPos();
-      var depthScale  = camera.GetDepthScale(imgPos.z);
-      var camPos      = camera.GetPosUpLeft();
-
-      camera.GetCanvasCtx().drawImage(imgObj, imgPos.x-camPos.x*depthScale, imgPos.y-camPos.y*depthScale);
-   }
-}
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeLabelledCircle(atX,atY,r,c) //r=number, c=array of RGB values
-{
-   this.kinematics = new TypeKinematics(atX,atY);
-   this.radius     = r;
-   this.color      = new TypeColor(c);
-   this.textObj    = new Array(5);
-   this.innerTextColor = new TypeColor(this.color.GetR()/2,this.color.GetG()/2,this.color.GetB()/2,1);
-   this.outerTextColor = new TypeColor(255,255,255,0.6);
+//KINEMATIC OBJECTS
+//NOTE: These objects are expected to be part of a scene in a kinematic environment and are drawn via the TypeCanvas2dPainter or TypeWebGlPainter objects
+function TypeTextLabel (thisText,txtSize,txtFont,pos,txtColor,txtHorAlign,txtVerAlign,backColor,padding,isRounded)
+{   //This is a text object with background fill (a label) that is used within a scene responding to a camera and kinematics
+    var textObj;
+    var textObjProp;
+    var textOscillator; 
 
-   this.Initialize = function ()
-   {
-      //Inner text object
-      this.textObj[0] = new TypeCanvasText("",this.radius,"Arial",0,0,this.innerTextColor,"center","middle",false,[255,255,255,0],3);
-      //Outer text objects
-      this.textObj[1] = new TypeCanvasText("",this.radius/2,"Arial",0,0,this.outerTextColor,"center","bottom",true,[0,0,0,0.2],3);
-      this.textObj[2] = new TypeCanvasText("",this.radius/2,"Arial",0,0,this.outerTextColor,"right", "middle",true,[0,0,0,0.2],3);
-      this.textObj[3] = new TypeCanvasText("",this.radius/2,"Arial",0,0,this.outerTextColor,"center","top",   true,[0,0,0,0.2],3);
-      this.textObj[4] = new TypeCanvasText("",this.radius/2,"Arial",0,0,this.outerTextColor,"left",  "middle",true,[0,0,0,0.2],3);
-   }
-   this.SetInnerText    = function (showTxt,ofColor)
-   {
-      if (!(ofColor instanceof TypeColor || (IsArray(ofColor) && ofColor.length>0)) || ofColor===undefined) {ofColor = this.innerTextColor;}
-      this.textObj[0].textColor.SetEqualTo(ofColor);
-      this.textObj[0].textStr = showTxt;
-   }
-   this.SetOuterText = function (showTxt,ofColor)
-   {
-      if (!(ofColor instanceof TypeColor || (IsArray(ofColor) && ofColor.length>0)) || ofColor===undefined) {ofColor=this.outerTextColor;}
-      for (var i=1;i<=4;i++) 
-      {
-          this.textObj[i].textStr = showTxt[i-1]; 
-          this.textObj[i].textColor.SetEqualTo(ofColor);
-      }
-   }
-   this.Translate = function (deltaPos) {this.kinematics.GetTmatrix().SetTranslate(deltaPos.x,deltaPos.y,deltaPos.z);}
-   this.Bounce    = function (normVec)  {this.kinematics.SetTranslationVel( this.kinematics.GetTranslationVel().ReflectAbout(normVec).ScaleBy((-1)*this.kinematics.GetElasticity()) );}
-   this.Draw      = function (camera)
-   {
-      var segPos   = this.kinematics.GetCurrentPos(); 
-      var camPos   = camera.GetPosUpLeft();
-      var pvmPos   = new TypeXYZw (segPos.x-camPos.x, segPos.y-camPos.y);
-      var ctx      = camera.GetCanvasCtx();
-      
-      //Draw the segment shape (circle)
-      ctx.beginPath();
-      ctx.arc(pvmPos.x, pvmPos.y,this.radius,0,2*Math.PI);
-      ctx.fillStyle   = this.color.GetCSScolor();
-      ctx.fill();
-      ctx.strokeStyle = GetCSScolor([255,255,255]);
-      ctx.lineWidth   = this.radius/15;
-      ctx.stroke();
-      
-      //Inner text
-      if (this.textObj[0].textStr !="") {this.textObj[0].SetDatumPos(pvmPos.x,pvmPos.y+2); this.textObj[0].Draw(camera);}
+    var backFillObj;
+    var backFillObjProp;
 
-      //OuterText
-      if (this.textObj[1].textStr !="") {this.textObj[1].SetDatumPos(pvmPos.x,pvmPos.y-this.radius-2); this.textObj[1].Draw(camera);}
-      if (this.textObj[2].textStr !="") {this.textObj[2].SetDatumPos(pvmPos.x-this.radius-3,pvmPos.y); this.textObj[2].Draw(camera);}
-      if (this.textObj[3].textStr !="") {this.textObj[3].SetDatumPos(pvmPos.x,pvmPos.y+this.radius+3); this.textObj[3].Draw(camera);}
-      if (this.textObj[4].textStr !="") {this.textObj[4].SetDatumPos(pvmPos.x+this.radius+3,pvmPos.y); this.textObj[4].Draw(camera);}
-   }
+    var backPadding;
    
-   this.Initialize();
-}
-//---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeEpicenter (X0,Y0,r,color,period)
-{
-   var radius          = r;
-   var cyclePeriod     = period;
-   var moveOscillator  = new TypeOscillator(cyclePeriod,Infinity,0);
-   var fadeOscillator  = new TypeOscillator(cyclePeriod/2,Infinity,0);
-   var strokeClr       = new TypeColor(color);
-   var state           = 0; // 0: inactive, 1: activated
-   var currPos         = new TypeXYZw(X0,Y0); //calculates once at draw. Avoids frequent recalculation.
-   var trigger         = new TypeTriggerArea(X0,Y0,r);
-   
-   this.GetPos   = function ()      {return currPos;}
-   this.IsActive = function ()      {return (state==1)? true:false;}
-   this.ReactTo  = function (point) {var trig = trigger.ReactTo(point); if (trig>0) {state=0;} else {state=1;} return trig;}
-   this.Draw     = function (camera)
-   {
-      var ctx     = camera.GetCanvasCtx();
-      var camPos  = camera.GetPosUpLeft();
-      //var currPos = kinematics.GetCurrentPos(); //if implemented like this make sure to also update the trigger pos at this point (trigger doesn't need its own kinematics)
-      
-      ctx.save();
-      ctx.beginPath();
-      ctx.strokeStyle = GetCSScolor([strokeClr.GetR(),strokeClr.GetG(),strokeClr.GetB(),strokeClr.GetAlpha()*(1-fadeOscillator.GetState())]);// strokeClr.GetCSScolor();
-      ctx.lineWidth   = 1;
-      ctx.arc(currPos.x-camPos.x,currPos.y-camPos.y,radius+moveOscillator.GetState()*10,0,2*Math.PI);
-      ctx.stroke();
-      ctx.restore();
-   }
-}
-//---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeGrid (stX,stY,enX,enY,shape,cSize)
-{
-   var startPos    = new TypeXYZw(stX,stY);
-   var endPos      = new TypeXYZw(enX,enY);
-   var cellSides   = (shape=="square" || shape=="quad")? 4:3;
-   var cellSize    = new TypeXYZw(cSize,cSize);
-   var defaultClr  = new TypeColor (0,0,0,0);
-   var gridPntArr  = [];
-   var countX,countY; //Total grid population
-   
-   this.fadeOutSpeed = 0.5;
-   
-   var Initialize = function ()
-   {
-      if (cellSides==3) {cellSize.y = cellSize.x*Math.cos(Math.PI/6);}
-      countX = Math.floor((endPos.x-startPos.x)/cellSize.x)+1;
-      countY = Math.floor((endPos.y-startPos.y)/cellSize.y)+1;
+    var Initialize = function (thisText,txtSize,txtFont,plane,txtColor,txtHorAlign,txtVerAlign,backColor,padding,isRounded)
+    {
+        //Note: plane could be a TypeXYZw (a point) or a TypePlane
+        //Note: the text size is in world coordinates
+        //Note: padding is in world units
+        
+        //Argument gate
+        if (isRounded===void(0)) {isRounded=true;}
+        if (!IsString(thisText)) {thisText='';}
+        if (!(plane instanceof TypePlane) && !(plane instanceof TypeXYZw))  {plane = new TypeXYZw(plane);} //Try to interpret it as a point first
+        if (plane instanceof TypeXYZw) {plane = new TypePlane(plane,new TypeXYZw(plane.x+1,plane.y,plane.z),new TypeXYZw(plane.x,plane.y+1,plane.z));}
+        if (isNaN(txtSize)) {txtSize = 0.2;}
+        if (!IsString(txtHorAlign) || (txtHorAlign!='left' && txtHorAlign!='right' && txtHorAlign!='center')) {txtHorAlign = 'left';}
+        if (!IsString(txtVerAlign) || (txtVerAlign!='bottom' && txtVerAlign!='middle' && txtVerAlign!='top')) {txtVerAlign = 'bottom';}
+        if (backColor && !(backColor instanceof TypeColor))   {backColor = new TypeColor(backColor);}
+        
+        textObj         = new TypeText(thisText); textObj.SetPlane(plane);
+        textObjProp     = new TypeTextProperties(textObj,txtFont,txtSize,txtHorAlign,txtVerAlign,txtColor); //targetTxt,fnt,sze,alU,alV,clr,outline,outlnProp
+        textOscillator  = new TypeOscillator();
 
-      for (var j=0;j<countY;j++)
-      {
-         var rowArr = new Array(countX);
-         for (var i=0;i<countX;i++)
-         {
-            rowArr[i] = [new TypeXYZw(Math.floor(startPos.x+i*cellSize.x), Math.floor(startPos.y+j*cellSize.y)),defaultClr.GetClone(), new TypeOscillator(1,0,0.5)];
-            if (cellSides==3 && j%2 == 1) {rowArr[i][0].x += cellSize.x/2;}
-         }
-         gridPntArr.push(rowArr);
-      }
-   }
-   
-   this.ActivateArea = function (atPoint,radius,color)
-   {
-      var di = Math.floor(radius/cellSize.x);
-      var dj = Math.floor(radius/cellSize.y);
-      var gi = Math.floor((atPoint.x-startPos.x)/cellSize.x);
-      var gj = Math.floor((atPoint.y-startPos.y)/cellSize.y);
+        if (!backColor) {return;} //If the text has no background fill then nothing else to do
+        else {backPadding = (isNaN(padding))? 0 : padding;} 
 
-      for (var j=0;j<=2*dj;j++)
-      {
-         var gridJ = gj+j-dj;
-         if (gridJ<0 || gridJ>=countY) continue;
-         for (var i=0;i<=2*di;i++)
-         {
-            var gridI = gi+i-di;
-       
-            if (gridI<0 || gridI>=countX) continue; 
-            var ptDist = atPoint.Minus(gridPntArr[gridJ][gridI][0]).Length();
-            if (ptDist>radius) {continue};
-            
-            gridPntArr[gridJ][gridI][1].SetColor(color[0],color[1],color[2],color[3]*(1.15-ptDist/radius));
-            gridPntArr[gridJ][gridI][2].Set(0.2,0.5,0); //(period,cycles,offset)
-         }
-      }
-   }
-   
-   this.Draw = function (camera)
-   {
-      var ctx     = camera.GetCanvasCtx();
-      var camPos  = camera.GetPosUpLeft();
-      var counter = 0;
-      ctx.lineWidth="1";
-      for (var j=0;j<countY;j++)
-      {
-         for (var i=0;i<countX;i++)
-         {
-            var gridPointOsc = gridPntArr[j][i][2];
-            var gridPointClr = gridPntArr[j][i][1];
-            var gridPoint    = gridPntArr[j][i][0];
-            
-            //Only the activated area of the grid draws because its oscilators are fresh (keep refreshing constantly) by calls to "this.ActivateArea"
-            //The rest of the grid's oscillators go to zero and are being skipped even though their color alpha might contain junk values due to erratic mouse movements
-            if (gridPointOsc.GetState()<epsilon) {continue;}
-            
-            ctx.beginPath();
-            ctx.strokeStyle = gridPointClr.GetCSScolor();
-            //ctx.moveTo(gridPoint.x+0.5,gridPoint.y+0.5); ctx.lineTo(gridPoint.x+5.5,gridPoint.y+0.5);
-            //ctx.rect(gridPoint.x-2.5-camPos.x,gridPoint.y-2.5-camPos.y,4,4);
-            ctx.arc(gridPoint.x+0.5,gridPoint.y+0.5,8,0,6.28318530718);
-            ctx.stroke();
-            counter++;
-         }
-      }
-   }
+        //The background fill for the text (the rectangle dimensions and orientation doesn't matter at the moment)
+        var textFillBox = new TypeCurve(); //The text box rectangle outline 
+        textFillBox.AddRectangle([0,0],[1,0],[0,1],backPadding); //The corner radius is as much as the padding
+        
+        backFillObj      = new TypeSurface();
+        backFillObj.name = 'TextLabel fill';
+        backFillObj.AddFillFromPlanarBoundary(textFillBox);
+        
+        backFillObjProp = new TypeSurfaceProperties(backFillObj);
+        backFillObjProp.SetMaterial(new TypeLegacyMaterial()).SetColor(backColor);
+        backFillObjProp.SetEdgeProperties(new TypeCurveProperties(textFillBox,void(0),0)); //Note: typeCurveProperties args (targetCrv,crvColor, crvThickness, crvDashPattern)
+ 
+        UpdateFillBox(); //Fits the dimensions of the fill box to the length of the text string
+    }
+    var ChangeText      = function (newText)  {textObj.SetText(newText); UpdateFillBox();}
+    var ChangeTextColor = function (newColor) {textObjProp.SetColor(newColor);}
+    var UpdateFillBox = function ()
+    {   //This method will resize the fill box to the dimensions of the text string assuming the font is monospace
+        if (!backFillObj) {return;} //If the text has no background fill, there is nothing to do
+        
+        var textDim    = new TypeXYZw(textObj.GetText().length*txtSize*0.6,txtSize); //assume text is monospace
+        var offsetVec  = new TypeXYZw(); 
+        var alignment  = textObjProp.GetAlignment();
+        var boundCurve = backFillObj.GetBoundaryCurves()[0];
+
+        if (alignment.horizontal=='center') {offsetVec = offsetVec.Minus(textObj.GetPlane().GetUnitU().ScaleBy(textDim.x/2 + backPadding));} 
+        if (alignment.horizontal=='right')  {offsetVec = offsetVec.Minus(textObj.GetPlane().GetUnitU().ScaleBy(textDim.x + backPadding));} 
+        if (alignment.horizontal=='left')   {offsetVec = offsetVec.Minus(textObj.GetPlane().GetUnitU().ScaleBy(backPadding));} 
+        if (alignment.vertical  =='middle') {offsetVec = offsetVec.Minus(textObj.GetPlane().GetUnitV().ScaleBy(textDim.y/2 + backPadding*0.5));} 
+        if (alignment.vertical  =='top')    {offsetVec = offsetVec.Minus(textObj.GetPlane().GetUnitV().ScaleBy(textDim.y + backPadding));}
+        if (alignment.vertical  =='bottom') {offsetVec = offsetVec.Minus(textObj.GetPlane().GetUnitV().ScaleBy(backPadding*0.5));} 
+        
+        var pointLL    = textObj.GetPlane().GetA().Plus(offsetVec);
+        var pointLR    = pointLL.Plus(textObj.GetPlane().GetUnitU().ScaleBy(textDim.x+backPadding*2));
+        var pointTL    = pointLL.Plus(textObj.GetPlane().GetUnitV().ScaleBy(textDim.y+backPadding*2));
+        //Explicitly set each coordinate in order to preserve the 'w' value
+        boundCurve.GetVertex(0).SetX(pointLL.x).SetY(pointLL.y).SetZ(pointLL.z);
+        boundCurve.GetVertex(1).SetX(pointLR.x).SetY(pointLR.y).SetZ(pointLR.z);
+        boundCurve.GetVertex(2).SetX(pointTL.x).SetY(pointTL.y).SetZ(pointTL.z);
+    }
+    
+    //Public methods
+    this.GetOscillator     = function () {return textOscillator;}
+    this.GetTextObject     = function () {return textObj;}
+    this.GetTextString     = function () {return textObj.GetText();}
+    this.GetTextProperties = function () {return textObjProp;}
+    this.GetTextColor      = function () {return textObjProp.GetColor();}
+    this.GetFillColor      = function () {return backFillObjProp.GetColor();}
+    this.GetTextFill       = function () {return backFillObj;}
+    this.GetFillProperties = function () {return backFillObjProp;}
+    
+    this.SetText           = function (newText)  {ChangeText(newText);}
+    this.SetTextColor      = function (newColor) {ChangeTextColor(newColor);}
+    this.UpdateFill        = function ()         {UpdateFillBox();}
    
    //Initialization
-   Initialize();
+   Initialize(thisText,txtSize,txtFont,pos,txtColor,txtHorAlign,txtVerAlign,backColor,padding,isRounded);
 }
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+//CANVAS PAINTER OBJECTS (these are the main interfaces for rendering a scene to canvas2D or WebGL)
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentShaderPath)
 {   //This object takes a scene and draws it on the given canvas via WebGL
@@ -710,7 +560,7 @@ function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentS
             if (glSceneObjects[i] && glSceneObjects[i].sceneObj != oneSceneObject) {ResetCrvGLbuffers(glSceneObjects[i]); ResetSrfGLbuffers(glSceneObjects[i]); glSceneObjects[i]=void(0);} 
             
             if (glSceneObjects[i] && oneSceneObject.GetLastModified()<=glSceneObjects[i].lastModified) {continue;} //No update needed for this specific scene object
-            if (glSceneObjects[i]) {oneGLobject = glSceneObjects[i];} //Scene object has been updated. Buffers need to reload
+            if (glSceneObjects[i]) {oneGLobject = glSceneObjects[i];} //if reached here, scene object has been updated. Buffers need to reload
             else {oneGLobject = MakeGLsceneObject(oneSceneObject); glSceneObjects[i]=oneGLobject;} //Wrap the scene object into a new GLsceneObject
             //--------------------------------------------------------
                         
@@ -748,17 +598,20 @@ function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentS
             };
             
             //Loop through all the pieces of the current sceneObject to generate flat array data
+            //Note: surfaceArrays and curveArrays started empty and will get filled with data from scratch in the for-loop below
             let pieceCount = oneSceneObject.GetPieceCount();
             for (let j=0;j<pieceCount;j++)
             {   //Walk though each piece
                 let onePiece = oneSceneObject.GetPiece(j); //This could be a surface or a curve
-                let onePieceProperties = oneSceneObject.GetPropertiesForPiece(j); //either a TypeSurfaceProperties or a TypeCurveProperties
-
+                let onePieceProperties = oneSceneObject.GetPropertiesForPiece(j,true); //either a TypeSurfaceProperties or a TypeCurveProperties
+                if (onePieceProperties && !onePieceProperties.GetIsVisible()) {continue;} //If the object is declared as non-visible, skip it.
+                
                 if (onePiece instanceof TypeSurface) {PrepareSurfaceArrays(surfaceArrays, onePiece, onePieceProperties);}
                 else if (onePiece instanceof TypeCurve) {PrepareCurveArrays(curveArrays, onePiece, onePieceProperties);}
             }
             
-            //Transfer the generated array data into the webGL buffers
+            //Transfer the generated array data (from the for-loop above) into the webGL buffers. 
+            //Note: Non-visible pieces did not add their data to the temporary surface or curve arrays
             TransferSceneObjectSrfToWebGL (oneGLobject, surfaceArrays); //The surfaces of the sceneObject
             TransferSceneObjectCrvToWebGL (oneGLobject, curveArrays);   //The curves of the sceneObject
         }
@@ -1174,7 +1027,7 @@ function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentS
             sourceScene.SetMovementAsModified();
         }
     }
-    this.Draw = function ()
+    this.Draw = function (ignoreChangeFlag)
     {   //This methods is the bottom line. (What the client uses to actually show everything on screen)
             
         //Note: we want to minimize the use of draw calls to webGL.
@@ -1183,7 +1036,7 @@ function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentS
         //Note: ... we have to split each scene-object into a surfaces call and a curves call (most scene objects will be either one or the other, rarely both)
         
         //Preliminary variables and checks
-        if (lastModified.draw>sourceScene.GetMovementLastModified() && GetAnyLookLastModified()>sourceScene.GetAnyLookLastModified()) {return;} //Nothing has changed
+        if (!ignoreChangeFlag && lastModified.draw>sourceScene.GetMovementLastModified() && GetAnyLookLastModified()>sourceScene.GetAnyLookLastModified()) {return;} //Nothing has changed
         if (isFailed) {Say('WARNING: (Draw) TypeCanvasWebGLpainter object is in a failed state',-1); return;}
         if (!isReady) {Say('WARNING: (Draw) TypeCanvasWebGLpainter object is not ready to draw (the shaders are probably still loading)',-1); return;}
         
@@ -1347,7 +1200,7 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         }
         
         //Sort the Z-buffer array.
-        var compareZdepths = function (a, b) {return sourceScene.GetSceneObject(a).GetZdepth() - sourceScene.GetSceneObject(b).GetZdepth() ;} //Compare function for sort
+        var compareZdepths = function (a, b) {var comp = sourceScene.GetSceneObject(a).GetZdepth() - sourceScene.GetSceneObject(b).GetZdepth(); return (comp!=0)? comp : a-b;} //Compare function for sort
         zOrderedObjArr.sort(compareZdepths); //if compareZdepths returns a negative then index 'a' goes first and the index 'b'
         
         lastModified.zBuffer = Date.now();
@@ -1368,24 +1221,75 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         for (let i=0; i<pieceCount; i++)
         {   //Walk through each piece in the sceneObject
             let onePiece           = currentSceneObject.GetPiece(i);
-            let onePieceProperties = currentSceneObject.GetPropertiesForPiece(i); //The pieceProperties (if this is a parent sceneObject), or the parent sceneObject's pieceProperties. 
-
-            if (onePiece instanceof TypeSurface) {canvas2D.beginPath(); MakeSurfacePaths(spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance); canvas2D.fill(); let showEdges = (currentObjAppearance.GetShowEdges()===void(0))? sceneDefaultAppearance.GetShowEdges() : currentObjAppearance.GetShowEdges(); if(showEdges){canvas2D.stroke();} continue;}
-            if (onePiece instanceof TypeCurve)   {canvas2D.beginPath(); MakeCurvePaths  (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance); canvas2D.stroke();   continue;}
-            if (onePiece instanceof TypeText)    {canvas2D.beginPath(); MakeTexts       (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance); canvas2D.fillText(); continue;}
+            let onePieceProperties = currentSceneObject.GetPropertiesForPiece(i,true); //The pieceProperties (if this is a parent sceneObject), or the parent sceneObject's pieceProperties. 
+            let isVisible          = (onePieceProperties)? onePieceProperties.GetIsVisible() : true;
+       
+            if (!isVisible) {continue;}
+            if (onePiece instanceof TypeSurface) {canvas2D.beginPath(); let result = MakeSurfacePaths(spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance); if(result.useFill) {canvas2D.fill();} if(result.useStroke) {canvas2D.stroke();} continue;}
+            if (onePiece instanceof TypeCurve)   {canvas2D.beginPath(); let result = MakeCurvePaths  (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance); if(result) {canvas2D.stroke();} continue;}
+            if (onePiece instanceof TypeText)    {MakeTexts (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance); continue;}
         }
     }
     var MakeTexts       = function (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance)
     {   //Helper method for DrawOneSceneObject-->Draw
         //Draws a text piece from inside the current sceneObject
+       
+        let defaultGlobalTxtProp = sceneDefaultAppearance.GetTextProperties(); //At the scene level the scene appearance object is guaranteed to have default values
+        let defaultScnobjTxtProp = currentObjAppearance.GetTextProperties();    //At the sceneObject level there may or may not be a textProperties object defined
         
+        let defGlobalOutlineProp = defaultGlobalTxtProp.GetOutlineProperties();
+        let defSceObjOutlineProp = (defaultScnobjTxtProp && defaultScnobjTxtProp.GetOutlineProperties())? defaultScnobjTxtProp.GetOutlineProperties() : void(0);
+        let onePieceOutlineProp  = (onePieceProperties && onePieceProperties.GetOutlineProperties())?  onePieceProperties.GetOutlineProperties() : void(0);
+
+        let textStr     = onePiece.GetText();
+        let textPlane   = onePiece.GetPlane();
+        let wZeroToScr  = spvmMatrix.MultiplyWith([0,0,textPlane.GetA().z,1]).Homogeneous(); //Used to convert a world vector into a screen vector
+        let align       = (onePieceProperties && onePieceProperties.GetAlignment())? onePieceProperties.GetAlignment() : (defaultScnobjTxtProp && defaultScnobjTxtProp.GetAlignment())? defaultScnobjTxtProp.GetAlignment() : defaultGlobalTxtProp.GetAlignment();
+        let color       = (onePieceProperties && onePieceProperties.GetColor())? onePieceProperties.GetColor() : (defaultScnobjTxtProp && defaultScnobjTxtProp.GetColor())? defaultScnobjTxtProp.GetColor() : defaultGlobalTxtProp.GetColor();
+        let font        = (onePieceProperties && onePieceProperties.GetFont())? onePieceProperties.GetFont() : (defaultScnobjTxtProp && defaultScnobjTxtProp.GetFont())? defaultScnobjTxtProp.GetFont() : defaultGlobalTxtProp.GetFont();
+        let size        = (onePieceProperties && onePieceProperties.GetSize()!==void(0))? onePieceProperties.GetSize() : (defaultScnobjTxtProp && defaultScnobjTxtProp.GetSize()!==void(0))? defaultScnobjTxtProp.GetSize() : defaultGlobalTxtProp.GetSize();
+        let isOutline   = (onePieceProperties && onePieceProperties.IsOutline()!==void(0))? onePieceProperties.IsOutline() : (defaultScnobjTxtProp && defaultScnobjTxtProp.IsOutline()!==void(0))? defaultScnobjTxtProp.IsOutline() : defaultGlobalTxtProp.IsOutline();
+        
+        let outWidth    = (onePieceOutlineProp && onePieceOutlineProp.GetThickness())? onePieceOutlineProp.GetThickness() : (defSceObjOutlineProp && defSceObjOutlineProp.GetThickness())? defSceObjOutlineProp.GetThickness() : defGlobalOutlineProp.GetThickness();
+        let outColor    = (onePieceOutlineProp && onePieceOutlineProp.GetColor())? onePieceOutlineProp.GetColor() : (onePieceProperties && onePieceProperties.GetColor())? onePieceProperties.GetColor() : (defSceObjOutlineProp && defSceObjOutlineProp.GetColor())? defSceObjOutlineProp.GetColor() : defGlobalOutlineProp.GetColor();
+        let outDashPtrn = (onePieceOutlineProp && onePieceOutlineProp.GetDashPattern())? onePieceOutlineProp.GetDashPattern() : (defSceObjOutlineProp && defSceObjOutlineProp.GetDashPattern())? defSceObjOutlineProp.GetDashPattern() : (defGlobalOutlineProp.GetDashPattern())? defGlobalOutlineProp.GetDashPattern() : [];
+        
+        let sizeVec     = new TypeXYZw(size); //size is in world units (default is 0.1)
+        let sizePixels  = spvmMatrix.MultiplyWith(sizeVec).Homogeneous().Minus(wZeroToScr).GetMax();
+        
+        canvas2D.font         = sizePixels + 'px ' + font;
+        canvas2D.textAlign    = align.horizontal;
+        canvas2D.textBaseline = align.vertical;
+        canvas2D.fillStyle    = color.GetCSScolor();
+        canvas2D.strokeStyle  = outColor.GetCSScolor();
+        canvas2D.lineWidth    = outWidth;
+        canvas2D.setLineDash (outDashPtrn);
+    
+        let vecLLtoLR   = textPlane.GetB().Minus(textPlane.GetA());
+        //let worldPos    = (align.horizontal=='left')? textPlane.GetA() : (align.horizontal=='right')? textPlane.GetB() : vecLLtoLR.ScaleBy(0.5).Plus(textPlane.GetA());
+        let scrPos      = spvmMatrix.MultiplyWith(textPlane.GetA()).Homogeneous();
+        let angle       = vecLLtoLR.AngleXY(); //Counterclockwise angle on world coordinates
+  
+        if (Math.abs(angle)>(pi/1800)) 
+        {   //anything over a 10th of a degree is considered a rotation
+            canvas2D.translate(scrPos.x,scrPos.y);
+            canvas2D.rotate(-angle);  //must be negated for screen coordinates
+            scrPos.x = scrPos.y = 0; //Since the canvas origin has already moved to this position the text will now be drawn at 0,0
+        }
+        
+        //Note: The strokeText fillText methods are included here (breaking the pattern from makeCurves and makeSurfaces)
+        //Note: strokeText and fillText do not pair with beginPath and they take coordinate arguments in them.
+        if (isOutline) {canvas2D.strokeText(textStr,scrPos.x,scrPos.y);} else {canvas2D.fillText(textStr,scrPos.x,scrPos.y);}
+        
+        canvas2D.resetTransform(); //In case the canvas had to be rotated
     }
     var MakeCurvePaths  = function (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance)
     {   //Helper method for DrawOneSceneObject-->Draw 
         //Helper method also for MakeSurfacePaths-->DrawOneSceneObject-->Draw
         //Draws a curve piece from inside the current sceneObject
-      
-        let wZeroToScr  = spvmMatrix.MultiplyWith([0,0,0,1]).Homogeneous(); //Used to convert a world vector into a screen vector
+
+        let wZeroToScr  = spvmMatrix.MultiplyWith([0,0,onePiece.GetZdepth(),1]).Homogeneous(); //Screen vector pointing to the world origin. Used as offset to convert other world vectors into screen vectors
+        let worldToPix  = spvmMatrix.MultiplyWith([1,0,onePiece.GetZdepth(),1]).Homogeneous().Minus(wZeroToScr).x; //One world unit is so many pixels
         let curveType   = onePiece.GetType();
 
         //Draw on canvas depending on the current curve type
@@ -1524,6 +1428,7 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
             }
         }
         
+        //Stop here if this is a surface edge path
         if (MakeCurvePaths.arguments.length==2) {return;} //makeCurvePaths is also used by the makeSurfacePaths method which doesn't need the curve color computations 
 
         //SETUP the appearance of this curve path
@@ -1538,12 +1443,16 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         
         let defaultCrvDash       = (defaultScnobjCrvProp && defaultScnobjCrvProp.GetDashPattern())? defaultScnobjCrvProp.GetDashPattern() : defaultGlobalCrvProp.GetDashPattern();
         let curveDashPattern     = (onePieceProperties && onePieceProperties.GetDashPattern())? onePieceProperties.GetDashPattern() : (defaultCrvDash)? defaultCrvDash : []; //Dash pattern can still be empty even at the default scene appearance level
-        
+
+        let showEdges            = (curveColor.GetAlpha()==0)? false : true;
+
         //Set the stroke style (color), thickness, and dash pattern
         //Note: The curve style, thickness, and dash properties can be set before the call to beginPath(), as they are now
         canvas2D.strokeStyle = curveColor.GetCSScolor();
         canvas2D.lineWidth   = curveThickness;
         canvas2D.setLineDash (curveDashPattern); 
+        
+        return showEdges;
     }
     var MakeSurfacePaths = function (spvmMatrix,onePiece,onePieceProperties,currentObjAppearance,sceneDefaultAppearance)
     {   //Helper method for DrawOneSceneObject-->Draw
@@ -1552,6 +1461,7 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         //Note: With canvas 2d rendering context surfaces are actually boundary curve fills (polygon fills)
         
         //The default color at the sceneObject level for curves 
+        let result               = {useFill:false,useStroke:false};
         let defaultGlobalSrfProp = sceneDefaultAppearance.GetMaterial(); //At the scene level the scene appearance object is guaranteed to have a default material
         let defaultScnobjSrfProp = currentObjAppearance.GetMaterial();   //At the sceneObject level there may or may not be a material assigned
         let defaultGlobalEdgProp = sceneDefaultAppearance.GetEdgeProperties(); //A TypeCurveProperties object
@@ -1565,7 +1475,7 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         
         let defaultEdgeColor     = (defaultScnobjEdgProp && defaultScnobjEdgProp.GetColor())? defaultScnobjEdgProp.GetColor() : defaultGlobalEdgProp.GetColor();
         let edgeColor            = (onePieceProperties && onePieceProperties.GetEdgeColor())? onePieceProperties.GetEdgeColor() : defaultEdgeColor;
-      
+   
         let defaultEdgThickness  = (defaultScnobjEdgProp && defaultScnobjEdgProp.GetThickness()!==void(0))? defaultScnobjEdgProp.GetThickness() : defaultGlobalEdgProp.GetThickness();
         let edgeThickness        = (onePieceProperties && onePieceProperties.GetEdgeThickness()!==void(0))? onePieceProperties.GetEdgeThickness() : defaultEdgThickness; 
         
@@ -1574,15 +1484,22 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         
         let boundaryCurves       = onePiece.GetBoundaryCurves();
         let bCurveCount          = boundaryCurves.length;
-        
+    
+         
+        let showFill             = (srfColor.GetAlpha()==0) ? false : true;
+        let showEdges            = (edgeThickness==0 || edgeColor.GetAlpha()==0)? false : (currentObjAppearance.GetShowEdges()===void(0))? sceneDefaultAppearance.GetShowEdges() : currentObjAppearance.GetShowEdges();
+   
+        result                   = {useFill:showFill,useStroke:showEdges}; 
+        if(!showFill && !showEdges) {return result;}
+       
         //Set the surface fill color and edge properties
         canvas2D.fillStyle       = srfColor.GetCSScolor();
         canvas2D.strokeStyle     = edgeColor.GetCSScolor();
         canvas2D.lineWidth       = edgeThickness;
         canvas2D.setLineDash (edgeDashPattern); 
-  
+
         //Handle a texture decal case
-        if (bCurveCount==1 && boundaryCurves[0].GetType() == 'Rectangle' && srfTexture) 
+        if (bCurveCount==1 && boundaryCurves[0].GetType() == 'Rectangle' && boundaryCurves[0].GetVertex(2).w==0 && srfTexture) 
         {
             let vertices  = boundaryCurves[0].GetComputedVertArr();
             let pointLL   = spvmMatrix.MultiplyWith(vertices[0]).Homogeneous();
@@ -1592,31 +1509,36 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
             let vecLLtoLR = pointLR.Minus(pointLL);
             let height    = vecLLtoTL.Length();
             let width     = vecLLtoLR.Length();
-            let angle     = vecLLtoLR.AngleXY(); //Counterclockwise angle
+            let angle     = vecLLtoLR.AngleXY(); //Counterclockwise angle on screen coordinates (which are inverted)
             canvas2D.translate(pointLL.x,pointLL.y);
-            canvas2D.rotate(angle); //angle is interpreted clockwise by the canvas2D context
+            canvas2D.rotate(angle); //screen coordinates angle
             canvas2D.drawImage(srfTexture.GetImageObj(),0,-height,width,height); 
             canvas2D.resetTransform();
-            return; //No paths are being defined (the canvas2D.fill() will have no effect)
+            result.useFill = false;
+            return result; //No paths are being defined (the canvas2D.fill() will have no effect)
         }
-        
+ 
         //Define fill-surface paths
         for (let i=0; i<bCurveCount; i++)
         {
             let oneBoundaryCurve = boundaryCurves[i];
             MakeCurvePaths (spvmMatrix,oneBoundaryCurve); //Only send two arguments (will prevent the MakeCurvePaths from computing appearance characteristics)
         }
+        
+        return result;
     }
     
     //PUBLIC methods
     this.IsLoaded       = function ()   {return isReady;}
     this.IsFailed       = function ()   {return isFailed;}
     this.IsStillLoading = function ()   {return !(isReady || isFailed);}
+    this.GetContext     = function ()   {return canvas2D;}
+    this.GetCanvasObj   = function ()   {return targetCanvas;}
     this.OperateCamera  = function ()   {}
-    this.Draw = function ()
+    this.Draw = function (ignoreChangeFlag)
     {
         //Preliminary variables and checks
-        if (lastModified.draw>sourceScene.GetMovementLastModified() && lastModified.draw>sourceScene.GetAnyLookLastModified()) {return;} //Nothing moved and nothing changed since last draw
+        if (!ignoreChangeFlag && lastModified.draw>sourceScene.GetMovementLastModified() && lastModified.draw>sourceScene.GetAnyLookLastModified()) {return;} //Nothing moved and nothing changed since last draw
         if (isFailed) {Say('WARNING: (Draw) TypeCanvas2Dpainter object is in a failed state',-1); return;} //Something went wrong during initialization
         if (!currentCamera.IsTopView()) {Say('WARNING: (Draw) Current camera is not in Top View',-1); return;}
 
@@ -1630,19 +1552,19 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         //Clear screen
         if(useClearScreen) {ClearScreen();}
         canvas2D.save(); //Save the existing state of the canvas context
-        
+       
         for (let i=0; i<xyPlanarObjCount; i++)
         {   //Walk through the zOrderedObjArr
 
             //GENERAL portion -----------------------
-            let currentSceneObject   = sourceScene.GetSceneObject(zOrderedObjArr[i]);
+            let currentSceneObject   = sourceScene.GetSceneObject(zOrderedObjArr[i]); //Say('drawing: '+currentSceneObject.name,-1); debugger;
             let currentObjAppearance = currentSceneObject.GetDefaultAppearance();
             let isVisible = currentObjAppearance.GetIsVisible(); if (isVisible===void(0)) {isVisible = sceneDefaultAppearance.GetIsVisible();}
             if (!isVisible) {continue;}
             
             let modelMatrix = currentSceneObject.GetKinematics().GetTmatrix();
             let spvmMatrix  = scrProjViewMatrix.MultiplyWith(modelMatrix); //Screen->projection->view->model transformation matrix
-            
+           
             //DRAWING portion -----------------------
             DrawOneSceneObject(spvmMatrix,currentSceneObject,currentObjAppearance,sceneDefaultAppearance);   
         }

@@ -11,7 +11,7 @@
 function TypeCSSobject (obj)
 {
     //Properties------------
-    var  CSSobject             = obj;
+    var  CSSobject             = obj; if (!CSSobject) {Say('WARNING: (TypeCSSobject) Did not receive an object during initialization',-1); return;}
     var  origParentBox         = CSSobject.parentElement.getBoundingClientRect();
     //Note: getBoundingClientRect() --> The amount of scrolling that has been done of the viewport area (or any other scrollable element) is taken into account when computing the bounding rectangle. 
     //Note: This means that the rectangle's boundary edges (top, left, bottom, and right) change their values every time the scrolling position changes
@@ -215,7 +215,7 @@ function TypeMenuCSS ()
     this.AddButton      = function (thisObj,T,elast,mountPos,restPos,offset,moveFade) {buttonArr.push(new TypeSpringCSS(thisObj,T,elast,mountPos,restPos,offset,moveFade));}
     this.ReactTo        = function (point) 
     {
-        if(this.triggerObj===undefined) return;
+        if(this.triggerObj===void(0)) return;
 
         var trigHold = (this.triggerHoldObj===undefined)? false : (this.triggerHoldObj.ReactTo(point)>0)? false : true;
         var trig = (this.triggerObj.ReactTo(point)>0)? false : true;; //if "point" is undefined triggerObj checks its DOM events and returns (-1 or Infinity)
@@ -228,12 +228,12 @@ function TypeMenuCSS ()
             buttonArr[i].ReactTo(point);
         }
     }
-    this.Draw      = function (camera)
+    this.Draw      = function (ctx)
     {
-        this.triggerObj.Draw(camera); //In case the trigger object itself is in motion (rarely if ever)
+        this.triggerObj.Draw(ctx); //In case the trigger object itself is in motion (rarely if ever)
 
         var count = buttonArr.length;
-        for (var i=0;i<count;i++) {buttonArr[i].Draw(camera);} //Draw each spring for animation
+        for (var i=0;i<count;i++) {buttonArr[i].Draw(ctx);} //Draw each spring for animation
     }      
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -296,32 +296,54 @@ function TypeTriggerArea(a,b,c,d)
     }
     this.toString = function ()        {return "TypeTriggerArea with bodyObj="+bodyObj};
     this.IsActive = function ()        {return isActive;}
-    this.Draw     = function (camera) {}
+    this.Draw     = function () {}
     
     //Initialization
     if      (arguments.length==3) {this.SetAsCircle(a,b,c);}
     else if (arguments.length==4) {this.SetAsRectangle(a,b,c,d);}
     else if (arguments.length<=2 && a instanceof TypeCSSobject) {this.SetBodyObject(a); this.SetDOMtrigger(b);}
-    else if (arguments.length<=2 && a.toString().toLowerCase().indexOf("html")>-1 && a.toString().toLowerCase().indexOf("element")>-1) {this.SetBodyObject(new TypeCSSobject(a)); this.SetDOMtrigger(b);}
+    else if (arguments.length<=2 && a && a.toString().toLowerCase().indexOf("html")>-1 && a.toString().toLowerCase().indexOf("element")>-1) {this.SetBodyObject(new TypeCSSobject(a)); this.SetDOMtrigger(b);}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeSpringCSS (thisObj,T,elast,fromP,toP,offset,moveFade)
 {
-    //Properties------------------------------------
-    var mountP       = new TypeXYZw(fromP);
-    var restP        = new TypeXYZw(toP);
-    var travelVec    = restP.Minus(mountP); //from mount position to resting position
-    var travelDist   = travelVec.Length();
-    var objOffset    = new TypeXYZw(offset);
-    var slider       = new TypeSlider(travelDist,T,elast);
-    var targetObj    = new TypeCSSobject (thisObj);
-    var hotRadius    = (targetObj.GetWidth() <= targetObj.GetHeight())? targetObj.GetHeight()*2.5 : targetObj.GetWidth()*2.5;
+
+    //Private Properties
+    var mountP;
+    var restP;
+    var travelVec;
+    var travelDist;
+    var objOffset;
+    var slider;
+    var targetObj;
+    var hotRadius;
     var motionFade;
     
+    //Public properties
     this.isReactive = true;
+    
+    //Private methods
+    var Initialize    = function (thisObj,T,elast,fromP,toP,offset,moveFade)
+    {
+        //Argument gate
+        if (thisObj==void(0)) {Say('WARNING: (TypeSpringCSS) Did not receive an initial object to act on',-1); return;}
+        
+        mountP       = new TypeXYZw(fromP);
+        restP        = new TypeXYZw(toP);
+        travelVec    = restP.Minus(mountP); //from mount position to resting position
+        travelDist   = travelVec.Length();
+        objOffset    = new TypeXYZw(offset);
+        slider       = new TypeSlider(travelDist,T,elast);
+        targetObj    = new TypeCSSobject (thisObj);
+        hotRadius    = (targetObj.GetWidth() <= targetObj.GetHeight())? targetObj.GetHeight()*2.5 : targetObj.GetWidth()*2.5;
+        
+        motionFade = (moveFade===undefined)? true : moveFade;
+        targetObj.SetTop(Number(mountP.y + objOffset.y));
+        targetObj.SetLeft(Number(mountP.x + objOffset.x)); 
+    }
       
-    //Methods -------------------------------------
-    this.SetDeploy    = function (toThis) {slider.SetDeploy(toThis);}
+    //Public Methods ---------------------------------------
+    this.SetDeploy    = function (toThis)  {slider.SetDeploy(toThis);}
     this.IsResting    = function ()        {return (slider.GetCondition()==1.0) ? true:false;}
     this.IsStowed     = function ()        {return (slider.GetCondition()==0.0) ? true:false;}
     this.IsMoving     = function ()        {return (slider.GetCondition()==0.5) ? true:false;}
@@ -339,33 +361,34 @@ function TypeSpringCSS (thisObj,T,elast,fromP,toP,offset,moveFade)
         targetObj.TopOffOpacity (ratio);        //Splits the difference from original opacity to 100%
         targetObj.ScaleGrayscale (ratio);      //Removes original grayscale (if any) depending on proximity
     }
-    this.Draw = function (camera)
+    this.Draw = function (ctx)
     {        
-        var ctx      = (camera===undefined)? undefined : camera.GetCanvasCtx(); 
-        var camPos   = (camera===undefined)? new TypeXYZw() : camera.GetPosUpLeft();
         var posRatio = slider.UpdateState();
         var currPos  = mountP.Plus(travelVec.ResizeTo(slider.GetPosition()));
 
         if (motionFade==true && slider.GetCondition()<1) {targetObj.ScaleOpacity(posRatio);}
-        targetObj.SetTop(Number(currPos.y + objOffset.y - camPos.x));
-        targetObj.SetLeft(Number(currPos.x + objOffset.x - camPos.y));      
+        targetObj.SetTop(Number(currPos.y + objOffset.y));
+        targetObj.SetLeft(Number(currPos.x + objOffset.x));      
     }
     
     //Initialization
-    motionFade = (moveFade===undefined)? true : moveFade;
-    targetObj.SetTop(Number(mountP.y + objOffset.y));
-    targetObj.SetLeft(Number(mountP.x + objOffset.x)); 
+    Initialize(thisObj,T,elast,fromP,toP,offset,moveFade);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-var TypeUserInputSensor = function (domElement)
+var TypeUserInputSensor = function (domElement, contTrack, senseMouse, senseKeyboard, senseTouch)
 {    //Senses user keyboard and mouse inputs of a DOM element
     //Note: DOM = Document Object Model
     
     //PRIVATE properties
     var targetElement;
     
-    var keyDownBuffer  = []; //keyboard keys currently down.
-    var keyPressBuffer = []; //History of keys pressed (keydown and keyup completed)
+    var keyCharBuffer;       //History of characters entered (keydown and keyup completed)
+    var keyBufferExpire;     //Used to clear the buffer after an interval of inactivity between keyDown events
+    var keyBufferTimer;      //The number of times the GetKeyState() method has been evoked
+    
+    var touchBuffer;         //History of touches entered
+    var touchBufferExpire;   //Used to clear the buffer after an interval of inactivity between touch events
+    var touchBufferTimer;    //
     
     var currentKeyPress;
     var currentSpecialKeys;  //State of Ctrl, Shift, alt, meta keys
@@ -375,10 +398,14 @@ var TypeUserInputSensor = function (domElement)
     var currentMousePos;     //In local DOM coordinates
     var currentMouseButtons; //Stored as 0/1 bits.
     
+    var currentTouches;      //An object holding referenses to touch lists (arrays)
+    
     var isKeyboardTracking;  //Boolean. Enable/disable key sensing
     var isMouseTracking;     //Boolean. Enable/disable mouse sensing
     var isContinuousTracking;//Boolean. Track movement continusously (otherwise only track inside the element on mouseDown)
     var isMouseOver;         //Boolean. Cursor is currently over the element true/false
+    
+    var isChanged;
     
     //PRIVATE methods
     var Initialize = function (domElement, contTrack)
@@ -395,6 +422,15 @@ var TypeUserInputSensor = function (domElement)
         
         currentKeyPress      = 0;
         currentSpecialKeys   = 0;
+        keyCharBuffer        = ''; //This is a string with all the echoing keypresses
+        keyBufferExpire      = 0;  //0:Always expired (no buffer), -1:Infinite buffer
+        keyBufferTimer       = 0;  //Increments by the GetKeyState() method
+        isChanged            = {mouse:void(0),keyPress:void(0),keyChar:void(0),touch:void(0)};
+        
+        touchBuffer          = [];
+        touchBufferExpire    = 0;  //0:Always expired (no buffer), -1:Infinite buffer
+        touchBufferTimer     = 0;
+        currentTouches       = {anywhere:void(0), target:void(0), changed:void(0)};
         
         //Note: The 'useCapture' option of the eventListener handles whether to trigger the event during the 'capture' phase or the 'bubble' phase. HTML elements are nested like onions.
         //Note: At the "capture" phase events are triggered downward in a parent to child direction. The "bubble" phase triggers upwards from most nested child.
@@ -433,10 +469,17 @@ var TypeUserInputSensor = function (domElement)
     }
     var HandleKeyDown   = function (eventObj) 
     {
-        if (!isMouseOver){return;}  
-        eventObj.preventDefault(); //tells the user agent that if the event does not get explicitly handled, its default action should not be taken as it normally would be.
-        currentKeyPress = (eventObj.keycode || eventObj.which); 
+        eventObj.preventDefault(); //default actions should not be taken as it normally would be (arrow keys no longer scroll, keypress not fired)
+        currentKeyPress = (eventObj.keycode || eventObj.which);
         SaveSpecialKeysState(eventObj);
+
+        //Register the keystroke to the buffers
+        var keyAlphaNum = (currentKeyPress>= 48 && currentKeyPress<= 90);
+        var keyNumpad   = (currentKeyPress>= 96 && currentKeyPress<=111);
+        var keySymbols  = (currentKeyPress>=186 && currentKeyPress<=222); //brackets, commas, etc
+        if(keyAlphaNum || keyNumpad || keySymbols) {keyBufferTimer=0; if (IsKeyBufferActive()) {keyCharBuffer += String.fromCharCode(currentKeyPress); isChanged.keyChar=true;}} //The echoing keys
+        
+        isChanged.keyPress=true;
     } 
     var HandleKeyUp     = function (eventObj) 
     {
@@ -454,6 +497,7 @@ var TypeUserInputSensor = function (domElement)
         ComputeMousePos(eventObj);                             //determine the currentMousePos
         datumMousePos.SetEqualTo(currentMousePos);             //ensuring delta is zero
         SaveMouseButtonsState(eventObj);                       //which moused buttons were pressed during the click
+        isChanged.mouse=true;
     }
     var HandleMouseUp = function (eventObj)
     {   //This event is comming from 'document'
@@ -462,8 +506,24 @@ var TypeUserInputSensor = function (domElement)
         datumMousePos.SetEqualTo(currentMousePos);             //set delta to zero
         currentMouseButtons  = 0;                              //clear the saved buttons state
     }
-    var HandleMouseMove   = function (eventObj) {eventObj.preventDefault(); ComputeMousePos(eventObj);}
-    var HandleTouchStart  = function (eventObj) {}
+    var HandleMouseMove   = function (eventObj) {eventObj.preventDefault(); ComputeMousePos(eventObj); isChanged.mouse=true;}
+    var HandleTouchStart  = function (eventObj) 
+    {
+        domElementBox = targetElement.getBoundingClientRect(); //Update in case the user scrolled the window
+        currentTouches.anywhere = ComputeTouchPosList(eventObj.touches);
+        currentTouches.target   = ComputeTouchPosList(eventObj.targetTouches);
+        currentTouches.changed  = ComputeTouchPosList(eventObj.changedTouches);
+        SaveSpecialKeysState(eventObj);
+        //Note: (changedTouches) For the touchstart event this must be a list of the touch points that just became active with the current event. 
+        //Note: (changedTouches) For the touchmove event this must be a list of the touch points that have moved since the last event. 
+        //Note: (changedTouches) For the touchend and touchcancel events this must be a list of the touch points that have just been removed from the surface
+        
+        //Register touch to the buffer
+        var touchCount = currentTouches.target.length;
+        for (let i=0; i<touchCount; i++) {touchBuffer.push(currentTouches.target[i]);}
+        touchBufferTimer = 0;
+        isChanged.touch=true;
+    }
     var HandleTouchEnd    = function (eventObj) {}
     var HandleTouchCancel = function (eventObj) {}
     var HandleTouchMove   = function (eventObj) {}
@@ -475,10 +535,31 @@ var TypeUserInputSensor = function (domElement)
         //Note: 'clientX,Y' are coordinates relative to the browser window
         //Note: 'pageX,Y' are coordinates relative to the webpage (the top of the webpage may not be visible if scrolled)
         //Note: 'screenX,Y' are coordinates relative to the computer monitor screen (the 0,0 of the browser window changes if the user moves the window)
+        return currentMousePos;
+    }
+    var ComputeTouchPosList = function (touchList)
+    {   //Computes touch positions relative to the target element 
+        //Note: any touches to the left of the element will have a negative x value
+        var touchCount     = touchList.length;
+        var touchPositions = [];
+        
+        for (let i=0; i<touchCount; i++)
+        {   //Walk through the touch list
+            let onePos   = new TypeXYZw();
+            let oneTouch = touchList[i];
+            //Note: 0,0 is top left
+            onePos.x = oneTouch.clientX - domElementBox.left; 
+            onePos.y = oneTouch.clientY - domElementBox.top; 
+            touchPositions.push(onePos);
+            //Note: 'clientX,Y' are coordinates relative to the browser window
+            //Note: 'pageX,Y' are coordinates relative to the webpage (the top of the webpage may not be visible if scrolled)
+            //Note: 'screenX,Y' are coordinates relative to the computer monitor screen (the 0,0 of the browser window changes if the user moves the window)
+        }
+        return touchPositions;
     }
     var MouseMovementTracking = function (state)
     {   //register or unregister event listeners
-        //Note: tracking the mouse constatntly could be expensive. There are times where it makes sense to dispable tracking
+        //Note: tracking the mouse constatntly could be expensive. There are times where it makes sense to disable tracking
         if (state) { document.addEventListener('mousemove',HandleMouseMove);} 
         else {document.removeEventListener('mousemove',HandleMouseMove);}
     }
@@ -498,9 +579,27 @@ var TypeUserInputSensor = function (domElement)
         
         SaveSpecialKeysState(thisEventObj); //Special keys are shared by both keyboard and mouse events
     }
+    var IsTouchBufferActive    = function () {return (touchBufferExpire>0 && touchBufferTimer<touchBufferExpire || touchBufferExpire<0)? true : false;}
+    var IsKeyBufferActive      = function () {return (keyBufferExpire>0 && keyBufferTimer<keyBufferExpire || keyBufferExpire<0)? true : false;}
+    var CheckTouchBufferExpire = function () {if(touchBuffer.length>0 && touchBufferExpire>0 && touchBufferTimer>=touchBufferExpire) {touchBuffer.length=0;} }
+    var CheckKeyBufferExpire   = function () {if(keyCharBuffer!='' && keyBufferExpire>0 && keyBufferTimer>=keyBufferExpire) {keyCharBuffer='';} }
     
     //PUBLIC
-    this.GetMouseState = function () 
+    this.ClearKeyBuffer       = function () {keyCharBuffer='';}
+    this.ClearTouchBuffer     = function () {touchBuffer.length=0;}
+    this.SetTouchBufferExpire = function (val) {touchBufferExpire = (isNaN(val))? 0 : val;} 
+    this.SetKeyBufferExpire   = function (val) {keyBufferExpire = (isNaN(val))? 0 : val;} 
+    this.SetKeysAsRead        = function () {isChanged.keyPress=false; isChanged.keyChar=false;}
+    this.SetTouchAsRead       = function () {isChanged.touch=false;}
+    this.IsChangedTouch       = function () {return isChanged.touch;}
+    this.IsChangedKeyPress    = function () {return isChanged.keyPress;}
+    this.IsChangedKeyChar     = function () {return isChanged.keyChar;}
+    this.IsChangedMouse       = function () {return isChanged.mouse;}
+    this.IsChangedTouch       = function () {return isChanged.touch;}
+    
+    this.GetTouchBufferStatus = function () {return IsTouchBufferActive();}
+    this.GetKeyBufferStatus   = function () {return IsKeyBufferActive();}
+    this.GetMouseState        = function () 
     { 
         var mouseState = 
         {
@@ -509,7 +608,8 @@ var TypeUserInputSensor = function (domElement)
             delta:currentMousePos.Minus(datumMousePos), 
             buttonState:currentMouseButtons, 
             specialKeys:currentSpecialKeys,
-            activeArea:domElementBox
+            activeArea:domElementBox,
+            isOver:isMouseOver
         };
         
         datumMousePos.SetEqualTo(currentMousePos); //Without this there would continue to be a delta even if the mouse stoped moving
@@ -517,14 +617,19 @@ var TypeUserInputSensor = function (domElement)
     }
     this.GetKeyState = function ()
     {
-        var keyState = {keyPressed:currentKeyPress, specialKeys:currentSpecialKeys}
+        if (IsKeyBufferActive()) {keyBufferTimer += deltaT;} else {CheckKeyBufferExpire();}
+        
+        var keyState = {keyPressed:currentKeyPress, specialKeys:currentSpecialKeys, charBuffer:keyCharBuffer}; 
         return keyState;
     }
     this.GetTouchState = function ()
     {
-        
+        if (IsTouchBufferActive()) {touchBufferTimer += deltaT;} else {CheckTouchBufferExpire();}
+     
+        var touchState = {touchListAny:currentTouches.anywhere, touchListTarget:currentTouches.target, touchListChanged:currentTouches.changed, specialKeys:currentSpecialKeys, targetTouchBuffer:touchBuffer};
+        return touchState;
     }
     
     //Initialization
-    Initialize(domElement);
+    Initialize(domElement, contTrack);
 }

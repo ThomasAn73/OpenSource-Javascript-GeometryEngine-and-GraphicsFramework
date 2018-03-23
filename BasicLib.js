@@ -34,6 +34,7 @@ function GetCSScolor (ColorArr)
    else if (ColorArr.length>=4) {return "rgba("+Number(ColorArr[0])+","+Number(ColorArr[1])+","+Number(ColorArr[2])+","+Number(ColorArr[3])+")";}
    else                         {return "rgb(" +Number(ColorArr[0])+","+Number(ColorArr[1])+","+Number(ColorArr[2])+")";}
 }
+function XOR (a,b) {return (a==true)? !b : b;}
 function GetArrRGB (CSScolorStr)
 {  //Convert a CSS color string to an array of numerical values
    var result = CSScolorStr.match(/\d+/g); //RegExp /..../ It contains operant \d (find digit), contains + (find all digits, not just one), ends with the g modifier (find all matches rather than stopping after the first match)
@@ -51,9 +52,9 @@ function ArrCompare(arr1,arr2)
 }
 function Say (userSays,elementID)
 {   //Print a message; either to a specificly supplied ID of an HTML element, or to the console
-    var defaultElementID = "PrintOut";                            //Default HTML element (by convention)
-    if (elementID === void(0)) {elementID = defaultElementID;}  //if none given use default
+    var defaultElementID = "PrintOut"; if (elementID === void(0)) {elementID = defaultElementID;} //PrintOut is Default HTML element (by convention)
     var OutputHTMLelement = document.getElementById(elementID); //document.getElementById always expects a string (so numbers will return null)
+    if (!IsString(userSays)) {userSays = String(userSays);}
 
     //Printing to the document
     if (OutputHTMLelement!==null) {OutputHTMLelement.innerHTML = userSays; return;}
@@ -86,6 +87,21 @@ function ClipValue2 (x,max,min)
     if (x<min || Number.isNaN(x)) {x=min;} else if (x>max) {x=max;}
     return x;
 }
+function PaddedNumber (num,totalDigits,padding)
+{   //Returns the number as a string and adds zeros at the front if the number itself has less digits
+
+    var zeros         = '';
+    var posNum        = Math.abs(num);
+    var sign          = (num<0)? '-' : '';
+    var numDigitCount = (posNum<1)? 1 : Math.floor(Math.log10(posNum))+1;
+    var zerosCount    = totalDigits-numDigitCount
+    
+    if (padding===void(0)) {padding = '0';}
+    if (Number.isNaN(zerosCount) || zerosCount<=0) {return num;} //Nothing to do
+
+    for (let i=0; i<zerosCount; i++) {zeros += padding;}
+    return sign+zeros+posNum;
+}
 function GetPathComponents (customPath)
 {    //Splits the path into a root substring and a filename substring (default path is where the calling HTML file located)
     var path = (customPath===void(0))? location.href : customPath; //location.href returns the full path to the calling HTML file
@@ -94,6 +110,20 @@ function GetPathComponents (customPath)
 }
 //===================================================================================================================================================
 //Classes / Constructor-functions
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+/*function TypeClassName (arguments)
+{   //Description:
+    
+    //PRIVATE properties
+    
+    //PRIVATE methods
+    var Initialize = function (arguments) {}
+    
+    //PUBLIC methods
+    
+    //Initialization
+    Initialize(arguments);
+}*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeSlider (trvLength,T,asSpring)
 {  //This object slides numerically from stowed to a deployed state within a range (it doesn't draw anything). If elastic, it will remain active until it comes to a rest.
@@ -181,7 +211,7 @@ function TypeSlider (trvLength,T,asSpring)
    Initialize(trvLength,T,asSpring);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
-function TypeOscillator (something,repeat,waveShift,startAtTime)
+function TypeOscillator (periodOrAny,repeat,waveShift,startAtTime)
 {  //Varies from 0 to 1. This object is essentially a little piston (cosine function) used as heartbeat for oscilating movements or behaviors (such as color fades, etc)
 
    //var timeStamp = sessionTimer;
@@ -218,9 +248,10 @@ function TypeOscillator (something,repeat,waveShift,startAtTime)
    this.GetOffset    = function ()        {return offset;}
    this.GetCounter   = function ()        {return cycleCount;}
    this.GetState     = function ()        {CalculateState(); return state; }
-   this.GetIsActive  = function ()           {return isActive;}
-   this.Restart      = function ()        {timer=0; CalculateState();}
-   this.SetEqualTo   = function (other)   {this.Set(other);}
+   this.GetIsActive  = function ()        {return isActive;}
+   this.Restart      = function ()        {timer=0; isActive=true; CalculateState(); return this;}
+   this.Stop         = function (state)   {isActive = false; return this;}
+   this.SetEqualTo   = function (other)   {this.Set(other); return this;}
    this.Set          = function (X,r,o,t)
    {       
       if (X instanceof TypeOscillator) { period = X.GetPeriod(); maxCycles = X.GetMaxCycles(); offset = X.GetOffset(); timer = X.GetTimer(); state = X.GetState(); isActive = X.GetIsActive(); return; }
@@ -233,11 +264,12 @@ function TypeOscillator (something,repeat,waveShift,startAtTime)
       isActive  = true;
       
       CalculateState();
+      return this;
    }
    this.toString  = function () {return '[Object TypeOscillator] (period:'+period+', MaxCycles:'+maxCycles+', Offset:'+offset+', Timer ticks:'+timer+', STATE:'+state+')\n';}
    
    //Initialization
-   this.Set(something,repeat,waveShift,startAtTime);
+   this.Set(periodOrAny,repeat,waveShift,startAtTime);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeColor (userX,userG,userB,userA,clipTo,scaleTo)
@@ -288,7 +320,7 @@ function TypeColor (userX,userG,userB,userA,clipTo,scaleTo)
    this.GetMaxRange    = function ()           {return MaxRange;}
    this.GetArrHSL      = function ()           {return ConvertRGBtoHSL();}  
    this.GetCSScolorHSL = function ()           {var arrHSL = this.GetArrHSL(); return "hsl("+arrHSL[0]+","+arrHSL[1]+"%,"+arrHSL[2]+"%)";}
-   this.GetClone       = function ()           {return new TypeColor(R,G,B,A,MaxRange);}
+   this.GetCopy        = function ()           {return new TypeColor(R,G,B,A,MaxRange);}
    
    this.SetAsPercent   = function (isPercent)   
    {   //Defaults to true if nothing given
@@ -315,6 +347,7 @@ function TypeColor (userX,userG,userB,userA,clipTo,scaleTo)
    this.SetColor       = function (X,newG,newB,newA,clip,scaleTo)
    {
       //Note: if clip resieves a boolean it is interpreted as 1 and is the equivalent of 'isPercent'
+      //Note: if scaleTo is missing it is set equal to clip (no scaling)
       if (X instanceof TypeColor) {R=X.GetR(true); G=X.GetG(true); B=X.GetB(true); A=X.GetAlpha(); MaxRange=X.GetMaxRange(); return;}
       
       var temp=X;
@@ -364,46 +397,86 @@ function TypeKinematics(x,y,z)
     var mass           = 1; //in Kg
     var elasticity     = 1; //from 0-1 for collision energy transfer
     var friction       = 0; //from 0-1
-    var datumPos       = new TypeXYZw(x,y,z); //Center of grapvity
-    var translationVel = new TypeXYZw();      //Pixels per second
-    var rotationVel    = new TypeXYZw();
-    var rotationAxis   = new TypeXYZw();
-    var tMatrix        = new TypeTmatrix();   //Position rotation and translation transformations to act on datumPos.
+    var datumPos       = new TypeXYZw(x,y,z);   //Center of grapvity (useful mainly during rotations about this point). This is not meant to be changed constantly to track an object.
+    var translationVel = new TypeXYZw();        //units per second
+    var rotationVel    = new TypeXYZw(0,0,1,0); //A unit vector indicating the spin axis (normal to the plane of rotation) with a 'w' value indicating the magnitude (angular velocity)
+    var tMatrix        = new TypeTmatrix();     //Position rotation and translation transformations to act on datumPos. 
+    var tMatrixHistory = [];
+    
+    var angleCounter; //
+    
+    //Note: The tMatrix is the bottom line. It is what should be used to transform any point to its final state.
+    //Note: Rotation velocity is a vector that uses the 'w' to store the angular speed. (this way 'w' can be set to zero without loosing the rotation plane)
     //Note: tMatrix only rotates about the world axis, the datumPos is needed to transfer the rotation to other locales.
+    //Note: if only translations are applied, datum position is irrelevant
+    //Note: a relative rotation, involves: a) translating by a minus datum amount, b) rotating, c) translating by a plus datum amount
+    
+    //Private methods
+    var ClearTranslationRotation = function () {tMatrix.SetIdentity(); translationVel.SetEqualTo(0,0,0,1); rotationVel.SetEqualTo(0,0,1,0);}
       
     //PUBLIC Methods-----------------------------------
-    this.UpdatePos = function  ()
-    {  //This updates the tMatrix with a delta based on rotation and translation
+    this.Update = function  (isLiveUpdate)
+    {  //This applies the rotation and translation velocities to the tMatrix
 
       var translDelta  = translationVel.ScaleBy(deltaT); //deltaT is a global variable
-      var rotDelta     = rotationVel.ScaleBy(deltaT);    //rotDelta = (vel rad/sec) * (dt sec)
-      tMatrix.SetTranslate(translDelta.x, translDelta.y, translDelta.z);
+      var rotDeltaTh   = rotationVel.w*deltaT;           //rotDelta = (speed rad/sec) * (dt sec)
+      var currDatumPos = tMatrix.MultiplyWith(datumPos);
+      
+      //Rotation is always about the datum
+      if (angleCounter!==void(0)) {angleCounter += rotDeltaTh;}
+      if (isLiveUpdate!==false && rotDeltaTh!=0)
+      {
+          tMatrix.SetTranslate(-currDatumPos.x, -currDatumPos.y, -currDatumPos.z);
+          tMatrix.SetRotate3D(rotationVel,rotDeltaTh);
+          tMatrix.SetTranslate(currDatumPos.x+translDelta.x, currDatumPos.y+translDelta.y, currDatumPos.z+translDelta.z);
+          return tMatrix;
+      }
+      if (isLiveUpdate!==false && rotDeltaTh==0)
+      {
+          tMatrix.SetTranslate(translDelta.x, translDelta.y, translDelta.z);
+          return tMatrix;
+      }
+      if (isLiveUpdate===false && rotDeltaTh!=0)
+      {
+          let tempMatrix = tMatrix.Translate(-currDatumPos.x, -currDatumPos.y, -currDatumPos.z);
+          tempMatrix     = tempMatrix.Rotate3D(rotationVel,rotDeltaTh);
+          tempMatrix     = tempMatrix.Translate(currDatumPos.x+translDelta.x, currDatumPos.y+translDelta.y, currDatumPos.z+translDelta.z);
+          return tempMatrix;
+      }
+      return tMatrix.Translate(translDelta.x, translDelta.y, translDelta.z);
+      
     }
     //---------
+    this.HasRotation       = function ()   {return (rotationVel.w==0)? false:true;}
+    this.HasTranslation    = function ()   {return !translationVel.IsZero();}
+    
     this.GetMass           = function ()   {return mass;}
     this.GetElasticity     = function ()   {return elasticity;}
     this.GetFriction       = function ()   {return friction;}
-    this.GetDatumPos       = function ()   {return datumPos;}       //client can edit TypeXYZw object once they Get it
-    this.GetTranslationVel = function ()   {return translationVel;} //client can edit TypeXYZw object once they Get it
-    this.GetRotationVel    = function ()   {return rotationVel;}    //client can edit TypeXYZw object once they Get it
-    this.GetTmatrix        = function ()   {return tMatrix;}        //client can edit TypeTmatrix object once they Get it
-    this.GetCurrentPos     = function ()   {this.UpdatePos(); return this.GetPos();}
-    this.GetPos            = function ()   {return tMatrix.MultiplyWith(datumPos);} //Simply read the position
-    this.GetPosAfter       = function (delta)
-    {
-      var translDelta     = translationVel.ScaleBy(delta);
-      //var rotDelta   = ... needs to be implemented
-      return tMatrix.Translate(translDelta.x, translDelta.y, translDelta.z).MultiplyWith(datumPos);
-    }
+    this.GetDatumPos       = function ()   {return datumPos;}   
+    this.GetAngleCounter   = function ()   {return angleCounter;}
+    this.GetTranslationVel = function ()   {return translationVel;} 
+    this.GetRotationVel    = function ()   {return rotationVel;}    
+    this.GetTmatrix        = function ()   {return tMatrix;}        
+    this.GetSavedTmatrix   = function (i)  {return tMatrixHistory[i];}
+    this.GetPos            = function ()   {return tMatrix.MultiplyWith(datumPos);}
+    this.GetFuturePos      = function ()   {return this.Update(false).MultiplyWith(datumPos);}
+    this.SavedTmatrixPop   = function ()   {return tMatrixHistory.pop();}
     //---------
     this.SetMass           = function (m)      {m = Number(m); if (m<0 || m==NaN) {m=0;} mass=m;} //Cannot be negative
     this.SetElasticity     = function (el)     {elasticity = ClipValue(el);} //Checks range to 0-1
     this.SetFriction       = function (fr)     {friction = ClipValue(fr);}   //Checks range to 0-1
     this.SetDatumPos       = function (x,y,z)  {if (x instanceof TypeXYZw) {datumPos=x;}      else {datumPos.SetEqualTo(x,y,z);} }
     this.SetTranslationVel = function (x,y,z)  {if (x instanceof TypeXYZw) {translationVel=x} else {translationVel.SetEqualTo(x,y,z);} }
-    this.SetRotationVel    = function (x,y,z)  {if (x instanceof TypeXYZw) {rotationVel=x}    else {rotationVel.SetEqualTo(x,y,z);}}
-    this.SetRotationAxis   = function (x,y,z)  {if (x instanceof TypeXYZw) {rotationAxis=x}   else {rotationAxis.SetEqualTo(x,y,z);}}
+    this.SetRotationVel    = function (x,y,z,w){if (x instanceof TypeXYZw) {rotationVel=x}    else {rotationVel.SetEqualTo(x,y,z,w);}}
     this.SetTmatrix        = function (tm)     {if (tm instanceof TypeTmatrix) {tMatrix=tm}   else {tMatrix.SetEqualTo(tm);} }
+    this.SetSavedTmatrix   = function (i,tm)   {if (tm instanceof TypeTmatrix) {tMatrixHistory[i]=tm} else {tMatrixHistory[i] = new TypeTmatrix(tm);} }
+    this.SaveTmatrixPush   = function (tm)     {if (tm instanceof TypeTmatrix) {tMatrixHistory.push(tm)} else {tMatrixHistory.push(new TypeTmatrix(tm));} }
+    this.StartAngleCounter = function ()       {angleCounter = 0;}
+    this.ClearAngleCounter = function ()       {angleCounter = void(0);}
+    this.Reset             = function ()       {ClearTranslationRotation();}
+    this.ResetTmatrix      = function ()       {tMatrix.SetIdentity();}
+    this.DeleteTmatrixHist = function ()       {tMatrixHistory=[];}
     //---------
     this.ApplyTo           = function (point)  {if (point instanceof TypeXYZw) {return tMatrix.MultiplyWith(point);} } //Apply the tMatrix to any point. (ignores local datum)
     this.toString          = function ()
@@ -432,7 +505,7 @@ function TypeXYZw (X,Y,Z,W)
    this.w; //The w component is NOT included in any of the calculations
       
    //PUBLIC methods -- the following methods are non destructive (return a new vector or point)
-   //Note: dotProduct definition (A*B) -> area of parallelogram -> LenA*LenB*cos(theta)/LenA^2 = LenB*cos(theta)/LenA
+   //Note: dotProduct definition (A*B) -> LenA*LenB*cos(theta)
    this.DotProduct     = function (v)         {return (v instanceof TypeXYZw)?(v.x*this.x + v.y*this.y + v.z*this.z):NaN;} //Note: The Tmatrix object has it's own internal dot product that includes the w
    this.CrossProduct   = function (v)         {return (v instanceof TypeXYZw)? new TypeXYZw(this.y*v.z - this.z*v.y, this.z*v.x - this.x*v.z, this.x*v.y - this.y*v.x):void(0);}
    this.MutualOrtho    = function (v)         {return this.CrossProduct(v);} //Synonym for cross product. Returns a vector mutualy orthogonal to 'this' and 'v'
@@ -460,7 +533,7 @@ function TypeXYZw (X,Y,Z,W)
    this.TestRayToRect  = function (r,a,b,c,cl){if (!(a instanceof TypeXYZw && b instanceof TypeXYZw && c instanceof TypeXYZw)) {return;} 
                                                var ab  = b.Minus(a), ac = c.Minus(a).AsOrthoTo(ab), norm = ab.CrossProduct(ac); //assume 'c' is any point on the rectangle's top side
                                                var pln = this.ExtendRayToPln(r,a,norm,cl); if (!pln) {return;} pln = pln.Minus(a); //make pln relative to 'a'
-                                               var abU = ab.DotProduct(pln) / ab.DotProduct(ab); 
+                                               var abU = ab.DotProduct(pln) / ab.DotProduct(ab);   //LenA*LenB*cos(theta)/LenA^2 = LenB*cos(theta)/LenA
                                                var acV = ac.DotProduct(pln) / ac.DotProduct(ac);
                                                return (abU>=0 && acV>=0 && abU<=1 && acV<=1)? new TypeXYZw(abU,acV,0) : void(0);} //returns rectangle coordinates of where the ray hit
    this.ExtendRayToLne = function (r,a,b,st)  {var d1   = r.Minus(this);       //Direction vec of line 1 (ray). Skew lines: https://en.wikipedia.org/wiki/Skew_lines
@@ -491,13 +564,16 @@ function TypeXYZw (X,Y,Z,W)
                                                return Math.abs(orthoTest)<epsilon;}                             //Any ortho to the norm is coplanar. Dot product of orthogonal vectors is zero
    this.IsCollinear    = function (a, b)      {return b.Minus(a).IsScalarOf(this.Minus(a));}                    //a and b are points in space defining a line. Check if 'this' point is on that line
    this.IsScalarOf     = function (v)         {return (Math.abs(this.x*v.y-this.y*v.x)<epsilon && Math.abs(this.x*v.z-this.z*v.x)<epsilon && Math.abs(this.y*v.z-this.z*v.y)<epsilon)? true : false;} //vectors are scalars of each other
-   this.IsRightOf      = function (a, b)      {var crossP = this.Minus(b).CrossProduct(b.Minus(a)); return ((crossP) > epsilon)? true : (crossP < -epsilon)? false : void(0);} //determine if b->'this' is on the right to a->b
+   this.IsRightOf      = function (a, b, n)   {var ab = b.Minus(a); var ac = this.Minus(a); if (ab.IsScalarOf(ac)) {return void(0);} //assume n is the plane normal
+                                               var crossP = ab.CrossProduct(ac); return (crossP.DotProduct(n) > epsilon)? true : false;} 
    this.IsOrtho        = function (v)         {return this.DotProduct(v) < epsilon ? true : false;}
    this.IsZero         = function ()          {return (Math.abs(this.x)<epsilon && Math.abs(this.y)<epsilon && Math.abs(this.z)<epsilon)? true : false;} //Does not account for 'w'
    this.IsEqual        = function (v)         {return (v instanceof TypeXYZw)? (Math.abs(this.x-v.x)<epsilon && Math.abs(this.y-v.y)<epsilon && Math.abs(this.z-v.z)<epsilon) : false;}
    this.IsNaN          = function ()          {return isNaN(this.x) || isNaN(this.y) || isNaN(this.z) || isNaN(this.w);}
    this.ReflectAbout   = function (v)         {return this.ProjectONTOvec(v).Plus(this.AsOrthoTo(v).ScaleBy(-1));}
    this.Homogeneous    = function ()          {return this.ScaleBy(1/this.w);}
+   this.GetMax         = function ()          {return Math.max(this.x,this.y,this.z);}
+   this.GetMin         = function ()          {return Math.min(this.x,this.y,this.z);}
    this.Get            = function (idx)       {return (idx==0)? this.x : (idx==1)? this.y : (idx==2)? this.z : (idx==3)? this.w : void(0);}
    this.GetCopy        = function (dim)       {return new TypeXYZw(this.x,((dim===void(0) || dim>1)? this.y : 0),((dim===void(0) || dim>2)? this.z : 0),((dim===void(0) || dim>3)? this.w : 1));}
    this.GetAsArray     = function (dim)       {return (dim==2)? [this.x,this.y] : (dim==3)? [this.x,this.y,this.z] : [this.x,this.y,this.z,this.w];}
@@ -505,12 +581,14 @@ function TypeXYZw (X,Y,Z,W)
    this.toString       = function ()          {return '[Object TypeXYZw]->('+this.x+','+this.y+','+this.z+','+this.w+')';}
    
    //This methods are destructive
+   this.SetInt         = function (dim)  {if (dim===void(0)){dim=4;} if (dim>0) {this.x = Math.floor(this.x);} if (dim>1) {this.y = Math.floor(this.y);} if (dim>2) {this.z = Math.floor(this.z);} if (dim>3) {this.w = Math.floor(this.w);}}
    this.SetMax         = function (v)    {if (!(v instanceof TypeXYZw)) {return this;} if (v.x>this.x) {this.x = v.x;} if (v.y>this.y) {this.y = v.y;} if (v.z>this.z) {this.z = v.z;} return this;}
    this.SetMin         = function (v)    {if (!(v instanceof TypeXYZw)) {return this;} if (v.x<this.x) {this.x = v.x;} if (v.y<this.y) {this.y = v.y;} if (v.z<this.z) {this.z = v.z;} return this;}
    this.SetX           = function (newX) {this.x = Number(newX); return this;}
    this.SetY           = function (newY) {this.y = Number(newY); return this;}
    this.SetZ           = function (newZ) {this.z = Number(newZ); return this;}
    this.SetW           = function (newW) {this.w = newW; return this;} //w is not as strict since it doesn't participate in vector algebra (other than Homogeneous() )
+   this.Set            = function (v,dim){if (dim===void(0)){dim=4;} if (dim>0) {this.x=v.x;} if (dim>1) {this.y=v.y;} if (dim>2) {this.z=v.z;} if (dim>3) {this.w=v.w;}}
    this.SetEqualTo     = function (any,y,z,w)         
    {
       if (any instanceof TypeXYZw) {this.x=any.x; this.y=any.y; this.z=any.z; this.w=any.w; return;}
@@ -527,36 +605,187 @@ function TypeXYZw (X,Y,Z,W)
    this.SetEqualTo (X,Y,Z,W);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
+function TypeBoundingBox ()
+{   //A world aligned bounding box
+
+    //Privte properties
+    var min; //A TypeXYZw point
+    var max; //A TypeXYZw point
+    
+    //Public methods
+    this.GetMin = function () {return (min)? min.GetCopy() : void(0);}
+    this.GetMax = function () {return (max)? max.GetCopy() : void(0);}
+    this.GetDim = function () {return (min && max)? max.Minus(min) : void(0);}
+    this.Reset  = function () {min = max = void(0);}
+    this.Update = function (newPoint)
+    {
+        //Note: Can receive another boundingBox object
+        
+        let auxPoint;
+        
+        if (  newPoint instanceof TypeBoundingBox) {auxPoint = newPoint.GetMax(); newPoint = newPoint.GetMin();}
+        if (!(newPoint instanceof TypeXYZw)) {return;}
+        if (!min || !max) {min = newPoint.GetCopy(); max = (auxPoint)? auxPoint.GetCopy() : newPoint.GetCopy(); return this;} //Trivial case
+        
+        min.SetMin(newPoint); if (auxPoint) {min.SetMin(auxPoint);}
+        max.SetMax(newPoint); if (auxPoint) {max.SetMax(auxPoint);}
+        return this;
+    }
+    this.toString = function ()
+    {
+        var  result  = '[Object TypeBoundingBox]';
+             result += 'Min point: '+min+'\n';
+             result += 'Max point: '+max+'\n';
+        return result;
+    }
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+function TypeCentroid ()
+{
+    //Privte properties
+    var position; //A TypeXYZw point
+    var weight;   //The number of points that contributed to the position so far
+    
+    //Public methods
+    this.GetPosition = function () {return position;}
+    this.GetWeight   = function () {return weight;}
+    this.Reset       = function () {position = weight = void(0);}
+    this.Update      = function (newPoint)
+    {
+        //Note: Can receive another centroid object
+        
+        let otherWeight = 1;
+        
+        if (  newPoint instanceof TypeCentroid) {otherWeight = newPoint.GetWeight(); newPoint = newPoint.GetPosition();}
+        if (!(newPoint instanceof TypeXYZw)) {return;}
+        if (!position) {position = newPoint.GetCopy(); weight = otherWeight; return this;} //Trivial case
+        
+        //Note: The idea is that if each vertex represents a unit weight then
+        //  --> we balance the moment of all previous weights against a single one on a beam
+        //  --> So that if x+y = beamLength, x*cummWeight = y * weight --> delta = weight / (cumWeight+weight)
+        let delta = newPoint.Minus(position).ScaleBy(otherWeight/(weight+otherWeight));
+        position  = position.Plus (delta);
+        weight   += otherWeight;
+        return this;
+    }
+    this.toString    = function ()
+    {
+        var result  = '[Object TypeCentroid]\n';
+            result += 'Position: '+position+'\n';
+            result += 'Weight  : '+Weight;
+        return result;
+    }
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypePlane (p1,p2,p3)
-{   //Object that represents a plane and can perform planarity tests
+{   //An object that represents a plane and can perform planarity tests
+    //A planarity check would either return true, or cause the object to 'burst' by turning it's values to NaN (if such a command is sent)
+    //Every planarity check updates a bounding rectangle (the minimum rectangle in UV coordinates that can envelop all the hits thus far)
+    //The origin of the bounding rectangle is point 'a' (while points 'b' and 'c' are used to form the UV coordinate system)
+    
     //Private properties
-    var a,b,c;         //Three TypeXYZw points to define a plane
+    var a,b,c;      //Three TypeXYZw points to define a plane
+    
+    var vecU,vecV;  //Vectors defining a UV coordinate system
+    var normal;     //The plane normal vector
+    var boundingUV; //The bounding rectangle of all tested points in UV coordinates
     
     //Private methods
     var Initialize = function (p1,p2,p3)
     {
-        if (!isNaN(p1)) { a = new TypeXYZw(0,0,p1); b = new TypeXYZw(1,0,p1); c = new TypeXYZw(0,1,p1); return; } //p1 represents zDepth 
-        if (p1 instanceof TypePlane) { a = p1.GetA(); b = p1.GetB(); c = p1.GetC(); return; }                      //from another plane
+        if (!isNaN(p1)) { a = new TypeXYZw(0,0,p1); b = new TypeXYZw(1,0,p1); c = new TypeXYZw(0,1,p1);} //when p1 is a numeric value interpret it as zDepth 
+        else if (p1 instanceof TypePlane) { a = p1.GetA(); b = p1.GetB(); c = p1.GetC(); }               //when p1 is another plane
+        else
+        {
+            a = (IsArray(p1))? new TypeXYZw(p1) : (p1 instanceof TypeXYZw)? p1 : void(0);
+            b = (IsArray(p2))? new TypeXYZw(p2) : (p2 instanceof TypeXYZw)? p2 : void(0);
+            c = (IsArray(p3))? new TypeXYZw(p3) : (p3 instanceof TypeXYZw)? p3 : void(0);
+            
+            if (b && b.IsEqual(a)) {b = void(0);}
+            if (c && b && a && c.IsCollinear(a,b)) {c = void(0);}
+        }
 
-        a = (IsArray(p1))? new TypeXYZw(p1) : (p1 instanceof TypeXYZw)? p1 : void(0);
-        b = (IsArray(p2))? new TypeXYZw(p2) : (p2 instanceof TypeXYZw)? p2 : void(0);
-        c = (IsArray(p3))? new TypeXYZw(p3) : (p3 instanceof TypeXYZw)? p3 : void(0);
+        vecU   = (a && b)? b.Minus(a).ResizeTo(1) : void(0);
+        vecV   = (vecU && c)? c.Minus(a).AsOrthoTo(vecU).ResizeTo(1) : void(0);
+        normal = (vecU && vecV)? vecU.CrossProduct(vecV) : void(0);
         
-        if (b && b.IsEqual(a)) {b = void(0);}
-        if (c && b && c.IsEqual(b) || c && a && c.IsEqual(a)) {c = void(0);}
+        boundingUV = new TypeBoundingBox();
+        boundingUV.Update(ComputeUVcoordinates(a));
+        boundingUV.Update(ComputeUVcoordinates(b));
+        boundingUV.Update(ComputeUVcoordinates(c));
     }
+    var ComputeUVcoordinates = function (point)
+    {   //Receives a previously checked coplanar 'point' 
+        //Returns a TypeXYZw containing the UV coordinates of the 'point' (the 'z' dimention will always be 0)
+        //Note: Assume vecU and vecV have been made orthogonal to each other during their initialization
+        //Note: Assume vecU and vecV have been checked to be non-zero (a, or b, or c were checked to be non-stacked)
+        
+        
+        if (!vecU) {return;} //A single vecU is essentially a 1D scenario
+        
+        //Note: coordU and coordV are scalars and vecU,vecV are unit vectors
+        //Note: DotProduct definition: LenA*LenB*cos(theta). 
+        //Note: The formula vecU.DotProduct(vecAP)/vecU.DotProduct(vecU) is equivalent to LenA*LenB*cos(theta) / LenA^2 = LenB*cos(theta) / LenA --> gives the shadow of B relative to the length of A 
+        //Note: Therefore the length of the shadow of 'vecAP' relative to vecU would be --> vecU.DotProduct(vecAP)/vecU.DotProduct(vecU), but since vecU is a unit vector (length 1) the denominator is unnecessary
+        var vecAP  = point.Minus(a);        //Vector from origin 'a' to 'point'
+        var coordU = vecU.DotProduct(vecAP); 
+        var coordV = (vecV)? vecV.DotProduct(vecAP) : 0;
+        
+        return new TypeXYZw(coordU,coordV);
+    }
+    var SetFailed      = function () {a = b = c = NaN; vecU = vecV = normal = void(0); boundingUV.Reset();} //This is the 'burst' command
     
     //Public methods
-    this.IsProper  = function () {return (a && b && c)? true:false;} //A 'proper' plane has all three points defined
-    this.IsStarted = function () {return (a || b || c)? true:false;} //If there is at least on point the plane is considered 'started'
-    this.IsEmpty   = function () {return (a===void(0) && b===void(0) && c===void(0))? true:false;}
-    this.IsNaN     = function () {return (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c))? true:false;}
-    this.IsFailed  = function () {return this.IsNaN();}
+    this.IsProper      = function () {return (a && b && c)? true:false;} //A 'proper' plane has all three points defined
+    this.IsStarted     = function () {return (a || b || c)? true:false;} //If there is at least on point the plane is considered 'started'
+    this.IsEmpty       = function () {return (a===void(0) && b===void(0) && c===void(0))? true:false;}
+    this.IsNaN         = function () {return (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c))? true:false;}
+    this.IsFailed      = function () {return this.IsNaN();}
     
-    this.GetA      = function () {return a;}
-    this.GetB      = function () {return b;}
-    this.GetC      = function () {return c;}
-    this.GetZdepth = function () 
+    this.GetA          = function () {return a;}
+    this.GetB          = function () {return b;}
+    this.GetC          = function () {return c;}
+    this.GetUnitU      = function () {return (vecU)? vecU.GetCopy() : void(0);}
+    this.GetUnitV      = function () {return (vecV)? vecV.GetCopy() : void(0);}
+    this.GetNormal     = function () {return normal;}
+    this.GetBoundUVrec = function () {return boundingUV;}          //This is a TypeBoundingBox containing UV min and max points (in UV coordinates)
+    this.GetBoundUVdim = function () {return boundingUV.GetDim();} //This is a TypeXYZw representing the widht and height of the bounding rectangle (in UV coordinates)
+    this.GetUVcoord    = function (point)
+    {   //Returns a point in plane UV coordinates
+        //Note: This is not considerred an official check and it has no effect on the bounding box
+        
+        //Argument gate
+        if (point===void(0)) {return;}
+        if (!(point instanceof TypeXYZw)) {point = new TypeXYZw(point);}
+        if (!point.IsCoplanar(a,b,c)) {return;}
+        
+        return ComputeUVcoordinates(point);
+    }
+    this.GetBoundMin   = function () 
+    {   //Return a point in world coordinates representing the minimum edge of the bounding rectangle
+        //A bounding rectangle represents the area within which all the hits (Has() checks) have occured thus far
+        
+        if (!vecU) {return;}
+        
+        var minUV  = boundingUV.GetMin();   //UV coordinates of the min point
+        var deltaU = vecU.ScaleBy(minUV.x); //minUV.x represents the U coordinate (as if it was minUV.U)
+        var deltaV = (vecV)? vecV.ScaleBy(minUV.y) : 0;
+        
+        return a.Plus(deltaU).Plus(deltaV); //'a' is considered the origin of the UV coordinates on this plane
+    }
+    this.GetBoundMax = function ()
+    {   //Return a point in world coordinates representing the minimum edge of the bounding rectangle
+        //A bounding rectangle represents the area within which all the hits (Has() checks) have occured thus far
+        
+        if (!vecU) {return;}
+        
+        var maxUV  = boundingUV.GetMax();   //UV coordinates of the max point
+        var deltaU = vecU.ScaleBy(maxUV.x); //maxUV.x represents the U coordinate (as if it was maxUV.U)
+        var deltaV = (vecV)? vecV.ScaleBy(maxUV.y) : 0;
+        
+        return a.Plus(deltaU).Plus(deltaV); //'a' is considered the origin of the UV coordinates on this plane
+    }
+    this.GetZdepth   = function () 
     {   //The Z value of the points in the plane in the special case where the plane is parallel to XY (including XY itself)
         //Return void(0) the plane itself is undefined, NaN if not XY parallel, a zDepth if XY parallel
         //Note: Theoretically there could also be a GetYdepth(), or GetXdepth() methods
@@ -572,11 +801,12 @@ function TypePlane (p1,p2,p3)
         if (Math.abs(pointA.z-pointB.z)<tolerance && Math.abs(pointA.z-pointC.z)<tolerance) {return pointA.z;} else {return NaN;}
     }
     
-    this.Clear     = function () {a = b = c = void(0);}
+    this.Clear     = function () {a = b = c = vecU = vecV = normal = void(0); boundingUV.Reset();}
     this.Set       = function (p1,p2,p3) {Initialize(p1,p2,p3);}
 
     this.Has       = function (query, isDurable, endCount)
     {   //Check coplanarity with query. 'Has' is interpreted not in an object sense but in a mathematical sense (a plane has an infinite number of points)
+        //Note: Each check expands the plane's bounding box horizon
         
         //Note: A single point would be coplanar to any other point. A single line (two points) would be coplanar to any other point
         //Note: If the plane is undefined (non of its points are set) then the first three comparisons will pass and those first three points will become the plane
@@ -591,7 +821,7 @@ function TypePlane (p1,p2,p3)
         var sourceArr  = []; 
         if (query instanceof TypePlane) 
         {
-            if (query.IsFailed()) { if (isDurable==false) {a = b = c = NaN;} return;} //Comparison with a failed plane inherits the fail
+            if (query.IsFailed()) { if (isDurable==false) {SetFailed();} return;} //Comparison with a failed plane inherits the fail. SetFailed() is the burst command
             if (query.IsEmpty()) {return true;} //Assume an empty plane represents infinite ambiguity and is compatible with all planes
             let otherA = query.GetA(); if(otherA) {sourceArr.push(otherA);} 
             let otherB = query.GetB(); if(otherB) {sourceArr.push(otherB);} 
@@ -600,8 +830,9 @@ function TypePlane (p1,p2,p3)
         else if (IsArray(query)) {sourceArr = query;}
         else if (query instanceof TypeXYZw) {sourceArr.push(query);}
         else {return;}
-    
+        
         //Do the comparisons
+        //Note: At this point the 'query' has been converted to an array of TypeXYZw points
         var vertCount  = sourceArr.length;
         var startIdx   = (!endCount || vertCount-endCount<=0)? 0:vertCount-endCount;
         for (let i=startIdx; i<vertCount; i++)
@@ -610,12 +841,18 @@ function TypePlane (p1,p2,p3)
             let sourcePoint = sourceArr[i]; if (!(sourcePoint instanceof TypeXYZw)) {return;} //The array is not homogeneous
             
             //Start forming the comparison plane if not already present (must be a valid plane)
-            if (!a) {a = sourcePoint; continue;}
-            if (!b) {b = (a.IsEqual(sourcePoint))? void(0) : sourcePoint; continue;}
-            if (!c) {c = (a.IsEqual(sourcePoint) || b.IsEqual(sourcePoint))? void(0) : sourcePoint; continue;}
-    
+            if (!a) {a = sourcePoint;}
+            else if (!b) {b = (a.IsEqual(sourcePoint))? void(0) : sourcePoint;}
+            else if (!c) {c = (sourcePoint.IsCollinear(a,b))? void(0) : sourcePoint;}
+            
+            //Set the UV vectors if needed
+            if (!vecU && a && b)         {vecU = b.Minus(a).ResizeTo(1);}
+            if (!vecV && vecU && c)      {vecV = c.Minus(a).AsOrthoTo(vecU).ResizeTo(1);}
+            if (!normal && vecU && vecV) {normal = vecU.CrossProduct(vecV);}
+        
             //Coplanarity check
-            if(!sourcePoint.IsCoplanar(a,b,c)) {if(isDurable==false) {a = b = c = NaN;} return;}
+            if(c && !sourcePoint.IsCoplanar(a,b,c)) {if(isDurable==false) {SetFailed();} return;}
+            boundingUV.Update(ComputeUVcoordinates(sourcePoint)); //Update the UV bounds
         }
         return true;
     }
@@ -710,6 +947,20 @@ function TypeTmatrix (incomingData)
       rotationMatrix.data[1][1]= Math.cos(angle);
       return rotationMatrix.MultiplyWith(this);
    }
+   this.Rotate3D    = function (u,angle)
+   {   //Non destructive roation transformation about an arbitrary u vector
+       if (!(u instanceof TypeXYZw)) {return rotationMatrix;}
+       u = u.ResizeTo(1);
+       angle = isNaN(angle) ? 0 : Number(angle);
+       var rotationMatrix = new TypeTmatrix();
+       var cosTheta = Math.cos(angle);
+       var sinTheta = Math.sin(angle);
+       var compCos  = 1-cosTheta;
+       rotationMatrix.data[0]=[cosTheta+u.x*u.x*compCos,     u.x*u.y*compCos-u.z*sinTheta, u.x*u.z*compCos+u.y*sinTheta];
+       rotationMatrix.data[1]=[u.y*u.x*compCos+u.z*sinTheta, cosTheta+u.y*u.y*compCos,     u.y*u.z*compCos-u.x*sinTheta];
+       rotationMatrix.data[2]=[u.z*u.x*compCos-u.y*sinTheta, u.z*u.y*compCos+u.x*sinTheta, cosTheta+u.z*u.z*compCos];
+       return rotationMatrix.MultiplyWith(this);
+   }
    this.Rotate2D    = function (angle) {this.RotateAboutZ (angle);}
    this.Translate   = function (dX,dY,dZ)
    {  //Non destructive translation transformation
@@ -784,6 +1035,7 @@ function TypeTmatrix (incomingData)
    this.SetRotateAboutY = function (angle)    {this.SetEqualTo(this.RotateAboutY(angle)); return this;}
    this.SetRotateAboutZ = function (angle)    {this.SetEqualTo(this.RotateAboutZ(angle)); return this;}
    this.SetRotate2D     = function (angle)    {this.SetEqualTo(this.RotateAboutZ(angle)); return this;}
+   this.SetRotate3D     = function (u,angle)  {this.SetEqualTo(this.Rotate3D(u,angle)); return this;}
    this.SetTranslate    = function (dX,dY,dZ) {this.SetEqualTo(this.Translate(dX,dY,dZ)); return this;}
    this.SetSwapRows     = function (rowA, rowB) 
    {
@@ -859,9 +1111,10 @@ function TypeCamera2D(canvCtx,posX,posY,maxX,maxY,minX,minY)
       return curPos;
    }
    this.GetPosCenter   = function ()               {var curPos = this.GetPosUpLeft(); curPos.x +=viewWidth/2; curPos.y +=viewHeight/2; return curPos;}
-   this.Update         = function ()               {kinematics.UpdatePos();}
+   this.Update         = function ()               {kinematics.Update();}
    this.GetCanvasCtx   = function ()               {return canvasCtx;}
    this.TranslateBy    = function (dx,dy)          {kinematics.GetTmatrix().SetTranslate(dx,dy,0);} //This should rarely be used. Velocity is the proper methods to move
+   this.ResetPosition  = function ()               {kinematics.ResetTmatrix();}
    this.GetViewWidth   = function ()               {return viewWidth;}
    this.GetViewHeight  = function ()               {return viewHeight;}
    this.GetDepthScale  = function (atZdepth)
@@ -892,6 +1145,7 @@ function TypeCamera()
         rightView  :{eye:new TypeXYZw(12.5,  0.0, 0.0), target:new TypeXYZw(), up:new TypeXYZw(0,0,1)},
         perspective:{eye:new TypeXYZw(-1.9619,-4.11307,2.05759), target:new TypeXYZw(), up:new TypeXYZw(0,1,0)}
     }
+    var viewPort;
 
     var isOrtho  = false;                    //default to 3d projection
     var plane    = {nearDist:4, farDist:30, clipLeft:-1, clipRight:1, clipTop:1, clipBottom:-1, aspect:1}; 
@@ -1093,7 +1347,7 @@ function TypeCamera()
     }
     this.Move = function (newTarget, isDelta)
     {
-        let delta = newTarget; if (!isDelta) {delta.SetEqualTo(newTarget.Minus(GetTarget()) );}
+        let delta = (isDelta)? newTarget : newTarget.Minus(target);
 
         eyePos.SetEqualTo(eyePos.Plus(delta));
         target.SetEqualTo(target.Plus(delta));
@@ -1144,7 +1398,14 @@ function TypeCamera()
         minX   = (minX===void(0))? 0 : Number(minX);
         minY   = (minY===void(0))? 0 : Number(minY);
         minZ   = (minZ===void(0))? 0 : Number(minZ);
-
+        
+        viewPort = {
+            pixelWidth :width,
+            pixelHeight:height,
+            minPoint   :new TypeXYZw(minX,minY,minZ),
+            maxZheight :maxZ
+        }
+        
         SetAspect((width-minX)/(height-minY)); 
         ComputeViewportMatrix(width,height,maxZ,minX,minY,minZ); 
         return this;
@@ -1163,6 +1424,7 @@ function TypeCamera()
     //---------
     //Note: There is a slight difference between GetFocalLength and GetFocalLength35
     //Note: If we project a FOV cone behind the eyePos and we slide a 36mmX24mm plane until it fits snuggly we get the 35mm equivalent focal length
+    this.GetViewportDim         = function () {return viewPort;}
     this.GetViewportMatrix      = function () {return viewportMatrix;}
     this.GetCameraPlane         = function () {return plane;}
     this.GetNearPlaneWidth      = function () {return Math.abs(plane.clipLeft) + Math.abs(plane.clipRight);}
@@ -1179,15 +1441,16 @@ function TypeCamera()
     this.GetProjectionMatrix    = function () {return projectionMatrix;}
     this.GetImageCoordForPoint  = function (point3D,imageWidth,imageHeight)
     {   //Compute where on the image will a point from the scene project to. (0,0 is upper left)
-    
-        imageWidth  = Number(imageWidth );
-        imageHeight = Number(imageHeight);
+        
+        //Argument gate
+        if((imageWidth===void(0) || imageHeight===void(0)) && viewPort) {imageWidth = viewPort.pixelWidth; imageHeight = viewPort.pixelHeight;}
+        else {imageWidth  = Number(imageWidth ); imageHeight = Number(imageHeight);}
         if (!(point3d instanceof TypeXYZw) || !imageWidth || !imageHeight) {return;}
         
-        var normPoint = projectionMatrix.MultiplyWith(viewMatrix).MultiplyWith(point3D);
-        normPoint = normPoint.ScaleBy(1/normPoint.w);
-        
-        return new TypeXYZw ((normPoint.x+1)*imageWidth/2,(1-normPoint.y)*imageHeight/2)
+        //Projection*View matrix * point
+        //Note: The viewport matrix is not used here because imageWidth and height are allowed to be custom values different than in the stored viewPort 
+        var normPoint = projectionMatrix.MultiplyWith(viewMatrix).MultiplyWith(point3D).Homogeneous();
+        return new TypeXYZw ((normPoint.x+1)*imageWidth/2,(1-normPoint.y)*imageHeight/2); 
     }
     this.toString = function ()
     {
@@ -1197,6 +1460,7 @@ function TypeCamera()
         result    += 'Camera target = '+target+'\n';
         result    += 'Camera UpVec  = '+up+'\n';
         result    += 'FieldOfView   = '+fov+'\n';
+        result    += 'ViewPort      = '+viewPort+'\n';
         result    += 'Camera plane  = '+plane+'\n';
         result    += '       near distance: '+plane.nearDist+'\n';
         result    += '       far  distance: '+plane.farDist+'\n';
@@ -1215,107 +1479,117 @@ function TypeCamera()
     Initialize();
 }
 //------------------------------------------------------------------------------------------
-function TypeBoundingBox ()
-{   //A world aligned bounding box
+function TypeCameraOperator (camera)
+{   //Handles camera movements
+    
+    //To DO ... handle user controls
+    //To DO ... handle movement on paths
+    
+    //PRIVATE properties
+    var targetCamera;
+    var kinematics;
+    
+    var startEye;
+    var startTarget;
+    
+    var bounds;      //An object with a min and max point defining a box that confines camera movement
 
-    //Privte properties
-    var min; //A TypeXYZw point
-    var max; //A TypeXYZw point
-    
-    //Public methods
-    this.GetMin = function () {return min;}
-    this.GetMax = function () {return max;}
-    this.Reset  = function () {min = max = void(0);}
-    this.Update = function (newPoint)
+    //PRIVATE methods
+    var Initialize = function (cam) 
     {
-        //Note: Can receive another boundingBox object
+        if (!(cam instanceof TypeCamera)) {Say('WARNING: (TypeCameraOperator) Did not receive a camera object',-1); return;}
         
-        let auxPoint;
-        
-        if (  newPoint instanceof TypeBoundingBox) {auxPoint = newPoint.GetMax(); newPoint = newPoint.GetMin();}
-        if (!(newPoint instanceof TypeXYZw)) {return;}
-        if (!min || !max) {min = newPoint.GetCopy(); max = (auxPoint)? auxPoint.GetCopy() : newPoint.GetCopy(); return this;} //Trivial case
-        
-        min.SetMin(newPoint); if (auxPoint) {min.SetMin(auxPoint);}
-        max.SetMax(newPoint); if (auxPoint) {max.SetMax(auxPoint);}
-        return this;
+        targetCamera = cam;
+        startEye     = cam.GetEyePos().GetCopy();
+        startTarget  = cam.GetTargetPos().GetCopy();
+        kinematics   = new TypeKinematics(startTarget.x,startTarget.y, startTarget.z);       
     }
-    this.toString = function ()
+    var CheckBounds    = function ()
     {
-        var  result  = '[Object TypeBoundingBox]';
-             result += 'Min point: '+min+'\n';
-             result += 'Max point: '+max+'\n';
+        if (!bounds) {return;} //Camera is unbounded
+        
+        var camTargetPos = kinematics.ApplyTo(startTarget);
+        if (camTargetPos.x<bounds.min.x) {kinematics.GetTranslationVel().x=0; kinematics.GetTmatrix().SetTranslate(bounds.min.x-camTargetPos.x,0,0);}
+        if (camTargetPos.x>bounds.max.x) {kinematics.GetTranslationVel().x=0; kinematics.GetTmatrix().SetTranslate(bounds.max.x-camTargetPos.x,0,0);}
+        if (camTargetPos.y<bounds.min.y) {kinematics.GetTranslationVel().y=0; kinematics.GetTmatrix().SetTranslate(0,bounds.min.y-camTargetPos.y,0);}
+        if (camTargetPos.y>bounds.max.y) {kinematics.GetTranslationVel().y=0; kinematics.GetTmatrix().SetTranslate(0,bounds.max.y-camTargetPos.y,0);}
+        if (camTargetPos.z<bounds.min.z) {kinematics.GetTranslationVel().z=0; kinematics.GetTmatrix().SetTranslate(0,0,bounds.min.z-camTargetPos.z);}
+        if (camTargetPos.z>bounds.max.z) {kinematics.GetTranslationVel().z=0; kinematics.GetTmatrix().SetTranslate(0,0,bounds.max.z-camTargetPos.z);}
+        
+        return;
+    }
+    
+    //PUBLIC methods
+    this.GetKinematics  = function () {return kinematics;}
+    this.GetCamera      = function () {return targetCamera;}
+    this.GetScreenPosOf = function (point)
+    {
+        if (point===void(0)) {point = new TypeXYZw();}
+        //Note: ViewportMatrix * ProjectionMatrix * ViewMatrix 
+        var spvMatrix = targetCamera.GetViewportMatrix().MultiplyWith(targetCamera.GetProjectionMatrix()).MultiplyWith(targetCamera.GetViewMatrix());
+        var result    = spvMatrix.MultiplyWith(point).Homogeneous();
         return result;
     }
-}
-//------------------------------------------------------------------------------------------
-function TypeCentroid ()
-{
-    //Privte properties
-    var position; //A TypeXYZw point
-    var weight;   //The number of points that contributed to the position so far
     
-    //Public methods
-    this.GetPosition = function () {return position;}
-    this.GetWeight   = function () {return weight;}
-    this.Reset       = function () {position = weight = void(0);}
-    this.Update      = function (newPoint)
+    this.SetBounds     = function (minB,maxB)
     {
-        //Note: Can receive another centroid object
+        if (IsArray(minB)) {minB = new TypeXYZw(minB);} if (!(minB instanceof TypeXYZw)) {return;}
+        if (IsArray(maxB)) {maxB = new TypeXYZw(maxB);} if (!(maxB instanceof TypeXYZw)) {return;}
         
-        let otherWeight = 1;
-        
-        if (  newPoint instanceof TypeCentroid) {otherWeight = newPoint.GetWeight(); newPoint = newPoint.GetPosition();}
-        if (!(newPoint instanceof TypeXYZw)) {return;}
-        if (!position) {position = newPoint.GetCopy(); weight = otherWeight; return this;} //Trivial case
-        
-        //Note: The idea is that if each vertex represents a unit weight then
-        //  --> we balance the moment of all previous weights against a single one on a beam
-        //  --> So that if x+y = beamLength, x*cummWeight = y * weight --> delta = weight / (cumWeight+weight)
-        let delta = newPoint.Minus(position).ScaleBy(otherWeight/(weight+otherWeight));
-        position  = position.Plus (delta);
-        weight   += otherWeight;
-        return this;
+        bounds = {min:minB, max:maxB};
     }
-    this.toString    = function ()
+    this.ResetPosition = function () {kinematics.Reset(); targetCamera.Move(startTarget);}
+    
+    this.Update = function ()
     {
-        var result  = '[Object TypeCentroid]\n';
-            result += 'Position: '+position+'\n';
-            result += 'Weight  : '+Weight;
-        return result;
+        kinematics.Update();
+        CheckBounds();
+
+        var isRotating    = kinematics.HasRotation();
+        var isTranslating = kinematics.HasTranslation();
+        if (!isTranslating && !isRotating) {return;}
+        if (isTranslating) {targetCamera.Move(kinematics.ApplyTo(startTarget),false); return;} //Translation only
+        
+        //To DO... handle rotation only
+        //To DO... handle both rotation and translation
     }
+    
+    //Initialization
+    Initialize(camera);
 }
 //------------------------------------------------------------------------------------------
-function TypeText()
+function TypeText(str)
 {   
     //Private properties
-    var textString;
-    var textBox; 
-    var textHeight;
+    var textString;  //The test itself
+    var textPlane;     //Three points defining a planar box
+    
+    var curveObj;    //The text as curves
+    var surfaceObj;  //The text as surfaces
     
     //Private methods
-    var Initialize   = function ()
+    var Initialize   = function (str)
     {
-        textString = '';
-        textHeight = 0.1; //in world units
-        textBox    = {
-            position:new TypeXYZw(),
-            width:void(0), 
-            height:void(0), 
-            normX:void(0), 
-            normY:void(0),
-            wrapText:false};
+        ChangeText(str);
+        textPlane  = new TypePlane([0,0],[1,0],[0,1]); 
     }
+    var ChangeText = function (newText) {if (newText===void(0)) {textString=void(0);} else if (IsString(newText) || !isNaN(newText)) {textString = newText;} else {textString = '';}}
+    var NewBoxObj  = function (a,b,c)   {return {pointLL:a, pointLR:b, rudder:c};};
     
     //Public properties
     this.name;
     
     //Public methods
-    this.SetText     = function (newText) {if (!IsString(newText)) {return;} textString = newText; return this; }
-    this.SetPosition = function (newPos)  {if (!(newPos instanceof TypeXYZw)){newPos = new TypeXYZw(newPos);} textBox.position = newPos; return this; }
-    
-    this.GetText     = function ()        {return testString;}
-    this.GetPosition = function ()        {return textBox.position;}
+    this.SetText     = function (newText) {ChangeText(newText); return this; }
+    this.SetPlane    = function (a,b,c)   {textPlane.Set(a,b,c); if (!textPlane.IsProper()) {Say('WARNING: (SetBox) The supplied points are not unique and cannot define a plane for the text box',-1); return;} else {return this;}}
+
+    this.GetText   = function ()        {return textString;}
+    this.GetPos    = function ()        {return textPlane.GetA();}
+    this.GetPlane  = function ()        {return textPlane;}
+    this.GetZdepth = function ()        {return textPlane.GetZdepth();}
+
+    //Initialization
+    Initialize (str);
 }
 //------------------------------------------------------------------------------------------
 function TypeCurve()
@@ -1337,8 +1611,12 @@ function TypeCurve()
     var vertices    = []; //an array of vertices
     var centroid    = new TypeCentroid(); 
     var boundingBox = new TypeBoundingBox(); //World aligned
-    var content     = {type :void(0), plane:new TypePlane(), isClosed:void(0)}; //An object acting as a table of contents
-    //content.type --> a string for the type of curve. Current implemetation restricts to only one thing (points, lines, polylines, interpolated, etc)
+    var content     = {type :void(0), plane:new TypePlane(), isClosed:void(0), prevSegsIsClosed: void(0), currSegIsClosed:void(0), currSegStartIdx:void(0)}; //An object acting as a table of contents
+    //Note: content.type --> a string for the type of curve. Current implemetation restricts to only one thing (points, lines, polylines, interpolated, etc)
+    //Note: content.currSegStartIdx  --> the beginning of the current polyline segment (first vertex after a NaN vertex)
+    //Note: content.currSegIsClosed  --> is the curve closed on its current segment
+    //Note: content.prevSegsIsClosed --> is the curve closed on all its previous segments
+    //Note: content.isClosed --> is the curve overall closed
 
     //Public methods;
     this.name;
@@ -1366,7 +1644,8 @@ function TypeCurve()
             let weight   = 1; //A single vertex counts as 1, parametric objects count as their circumference
             let currVert = vertices[i];
             let computedBoxAndCentroid;
-
+            
+            if (currVert.IsNaN()) {continue;} //Terminator vertex does not contribute to bounding box or centroid
             if (parametric && content.type=='Ellipse')     {computedBoxAndCentroid = GenerateArcPoints(vertices[i],vertices[i+1],vertices[i+2],vertices[i].w,vertices[i+1].w,false,false);} else
             if (parametric && content.type=='RegularNgon') {computedBoxAndCentroid = GenerateArcPoints(vertices[i],vertices[i+1],vertices[i+2],vertices[i].w,vertices[i+1].w,true,true);} else
             if (parametric && content.type=='Circle')      {computedBoxAndCentroid = GenerateArcPoints(vertices[i],vertices[i+1],vertices[i+2],vertices[i].w,vertices[i+1].w,false,true);} else
@@ -1388,7 +1667,7 @@ function TypeCurve()
         if (content.type=='RegularNgon')  {return ComputeAsRegularNgon();}
         
         //Raw vertices. No computation needed
-        if (content.type=='Point' || content.type=='Line' || content.type=='Polyline' || content.type===void(0)) {Say('WARNING (GetComputedVertArr) Points, Lines, and Polylines do not have a computed vertex array.',-1); return;}
+        if (content.type=='Point' || content.type=='Line' || content.type=='Polyline' || content.type===void(0)) {return;}
     }
     var ComputeAsParticle    = function ()
     {   
@@ -1628,6 +1907,36 @@ function TypeCurve()
         var result = ComputedVertexArray(); //Will convert the original type from Rectangle, RegularNgon, or Circle --> to polyline (regardless of whether newType is Polyline or line, or interpolated)
         if (result!==void(0)) {vertices = result; content.type = newType; return true;} else {return false;}
     }
+    var CheckClosed        = function ()
+    {   //Check if the curve is a closed curve
+        
+        if (content.type=='Graph') {return;} //Depends on the graph (To DO...)
+        if (content.type=='Particle' || content.type=='Point' || content.type=='Line') {content.isClosed = false; return;} //Lines are not treated as water-tight; even if used to form a square
+        if (content.type=='Circle' || content.type=='RegularNgon' || content.type=='Rectangle') {content.isClosed = true; return;} //These parametric types are closed by default
+        if (content.type===void(0) || content.type=='Polyline'|| content.type=='Interpolated' || content.type=='Bezier' || content.type=='B-Spline') 
+        {   //Check for a loop in the last segment and keep track of loops in all segments cummulatively.
+    
+            //Note: The beginning of a new polyline segment is kept by storing its index in content.currSegStartIdx
+            //Note: The content.prevSegsIsClosed flag signifies if the previous segment was also a closed loop
+            //Note: The content.currSegIsClosed flag signifies if the current segment is closed yet or not
+            
+            let vCount      = vertices.length;
+            let startVert   = vertices[content.currSegStartIdx]; //The beginning vertex of the current segment
+            let currVert    = vertices[vCount-1];
+            let prevVert    = vertices[vCount-2];
+
+            //Handle the segment-end scenario
+            //Note: A vertex containing NaN is a terminator vertex (signifying the beginning of a new polyline segment)
+            if (currVert.IsNaN()) {content.prevSegsIsClosed = (content.prevSegsIsClosed===void(0))? content.currSegIsClosed : (content.currSegIsClosed && content.prevSegsIsClosed)? true : false; return;} //Update the prevSegsIsClosed flag
+            
+            //At this point the segment is guaranteed to be ongoing 
+            if (!prevVert || prevVert.IsNaN()) {content.currSegStartIdx = vCount-1; startVert = vertices[vCount-1];} //When the prevVert is a terminator vertex there is a new segment starting now
+            content.currSegIsClosed = (vCount - content.currSegStartIdx > 3  && startVert.IsEqual(currVert))? true : false;
+            content.isClosed        = (content.currSegIsClosed && (content.prevSegsIsClosed===void(0) || content.prevSegsIsClosed))? true : false;
+            
+            return;
+        }
+    }
     var CheckPlanar        = function (thisMany) {return content.plane.Has(vertices,false,thisMany);} //check 'thisMany' from the end of the vertices array
     var IsParametricType   = function ()     {return (content.type=='Particle' || content.type=='Circle' || content.type=='Rectangle' || content.type=='RegularNgon' || content.type=='Graph')? true:false;}
     var IsComputedType     = function ()     {return (IsParametricType() || content.type=='Interpolated' || content.type=='Bezier' || content.type=='B-Spline')? true:false;}
@@ -1692,11 +2001,16 @@ function TypeCurve()
     }
     this.AddVertex         = function (newVertex)
     {   //Add a new vertex generically (No specific type given)
-        if (content.type!==void(0)) {Say('CAUTION: (AddVertex) Raw vertices are being added to a curve type previously declared as <'+content.type+'>',-1);}
-        if (!(newVertex instanceof TypeXYZw)) {newVertex = new TypeXYZw (newVertex);} //Argument clean up    
-        
+
+        //Argument gate
+        var prevVert = vertices[vertices.length-1];
+        if (content.type!==void(0)) {Say('CAUTION: (AddVertex) Raw vertices are being added to a curve type previously declared as <'+content.type+'>',-1);} //Allows to pass through (for complete manual control)
+        if (!(newVertex instanceof TypeXYZw)) {newVertex = new TypeXYZw (newVertex);} //Argument clean up
+        if (newVertex.IsNaN() && (!prevVert || prevVert.IsNaN()) ) {return this;}     //Reject consequtive terminator vertices
+
         vertices.push (newVertex);
-        
+     
+        CheckClosed();
         CheckPlanar(1); 
         ComputeBoundboxAndCentroid(1);
         return this;
@@ -1708,9 +2022,10 @@ function TypeCurve()
         
         //Check for type missmatch
         if (!asCircle && !ChangeType('Ellipse')) {return;} else if ( asCircle && !ChangeType('Circle')) {return;}
-        
+
         //Argument clean up
         if(!(centerPoint instanceof TypeXYZw)) {centerPoint = new TypeXYZw(centerPoint);}
+        if(!isNaN(radiusPoint))                {if(rudderPoint===void(0)){rudderPoint = new TypeXYZw(centerPoint.x,centerPoint.y+radiusPoint,centerPoint.z);} radiusPoint = new TypeXYZw(centerPoint.x+radiusPoint,centerPoint.y,centerPoint.z);} //a numeric radius point is converted to a vector
         if(!(radiusPoint instanceof TypeXYZw)) {radiusPoint = new TypeXYZw(radiusPoint);} if(radiusPoint.IsEqual(centerPoint)) {Say('WARNING: '+((asCircle)? '(AddCircle)':'(AddEllipse)')+'Supplied radius point coincides with the center point',-1); return;} 
         if(!(rudderPoint instanceof TypeXYZw)) {rudderPoint = new TypeXYZw(rudderPoint);} if(rudderPoint.IsCollinear(centerPoint,radiusPoint)) {Say('WARNING: '+((asCircle)? '(AddCircle)':'(AddEllipse)')+' Supplied rudder point is collinear to center and radius points and doesn\'t define a plane',-1); return;}
         arcAngleRad     = Number(arcAngleRad); //In radians
@@ -1726,7 +2041,7 @@ function TypeCurve()
         radiusPoint.w = viewingDistance;
         vertices.push(centerPoint,radiusPoint,rudderPoint);
         
-        if (content.isClosed===void(0)) {content.isClosed=true;}
+        CheckClosed();
         CheckPlanar(3); 
         ComputeBoundboxAndCentroid(1); //One ellipse
         return this;
@@ -1747,7 +2062,7 @@ function TypeCurve()
         radiusPoint.w = sideCount;                          //Store the sides in the 'w' of the radius point
         vertices.push(centerPoint,radiusPoint,rudderPoint); //Push the tripplet into the vertex array
         
-        if (content.isClosed===void(0)) {content.isClosed=true;}
+        CheckClosed();
         CheckPlanar(3); 
         ComputeBoundboxAndCentroid(1); //One Ngon
         return this;
@@ -1769,7 +2084,7 @@ function TypeCurve()
         topPoint.w = cornerRadius;    //store the corner radius
         vertices.push(pointLL,pointLR,topPoint);
         
-        if (content.isClosed===void(0)) {content.isClosed=true;}
+        CheckClosed();
         CheckPlanar(3); 
         ComputeBoundboxAndCentroid(1); //One rectangle
         return this;
@@ -1853,7 +2168,7 @@ function TypeSurface()
     {   //Calculates/Udates the bounding box and centroid of the surface
 
         var isDerivative = (constructionArr.length>0)? true : false;
-        var count        = (isDerivative)? constructionArr.length : geometry.vertices.length; if (vertCount==0) {return;}
+        var count        = (isDerivative)? constructionArr.length : geometry.vertices.length; if (count==0) {return;}
         var startIdx     = (!thisMany || count-thisMany<0)? 0 : count-thisMany;
         
         for (let i=startIdx; i<count; i++)
@@ -1922,9 +2237,9 @@ function TypeSurface()
     this.GetPlane          = function ()        {return geometry.content.plane;}
     this.GetCentroid       = function ()        {return geometry.centroid;}
     this.GetBoundingBox    = function ()        {return geometry.boundingBox;}
-    this.GetVertexCount    = function ()        {return InflateConstructionArray(); geometry.vertices.length;}
-    this.GetMeshSize       = function ()        {return InflateConstructionArray(); geometry.mesh.length;} 
-    this.GetMeshTriCount   = function ()        {return InflateConstructionArray(); geometry.mesh.length/3;} //Number of mesh triangles
+    this.GetVertexCount    = function ()        {InflateConstructionArray(); return geometry.vertices.length;}
+    this.GetMeshSize       = function ()        {InflateConstructionArray(); return geometry.mesh.length;} 
+    this.GetMeshTriCount   = function ()        {InflateConstructionArray(); return geometry.mesh.length/3;} //Number of mesh triangles
     this.GetEdgeCount      = function ()        {return (IsArray(geometry.edges))? geometry.edges.length:-1;}
     this.GetVertex         = function (vertIdx) {return geometry.vertices[vertIdx];}
     this.GetMeshValue      = function (meshIdx) {return geometry.mesh[meshIdx];}
@@ -1985,7 +2300,7 @@ function TypeSurface()
 
         //Entrance gate
         if (constructionArr.length>0) {Say('WARNING: (AddMeshFace) Not allowed to add freestyle mesh faces. This surface was previously defined as a derivative surface from construction curves',-1); return;}
-        
+      
         var argumentCount=0;
         if (IsArray(idx1)) {idx4=idx1[3]; idx3=idx1[2]; idx2=idx1[1]; idx1=idx1[0]}
         for (var i=0;i<4;i++) { if(this.AddMeshFace.arguments[i]!==void(0)) {argumentCount++;} }
@@ -2014,7 +2329,7 @@ function TypeSurface()
     }
     this.AddTriangle = function (vert1,vert2,vert3)
     {    //This method adds a complete shape; both vertices and the mesh indexes
-    
+   
         //Surface-type gate
         if (constructionArr.length>0) {Say('WARNING: (AddTriangle) Not allowed to add freestyle triangles. This surface was previously defined as a derivative surface from construction curves',-1); return;}
     
@@ -2254,7 +2569,7 @@ function TypeLegacyMaterial(syncAlpha)
     //Note: TypeColor (R,G,B,A, (optional)clipTo, (optional)resizeTo)
 
     //Private properties
-    var keepAlphaInSync = (syncAlpha==true);   //Boolean. Keep the alpha values of all colors syncronized to the 'd' value
+    var keepAlphaInSync = (syncAlpha==true)? true:false; //Boolean. Keep the alpha values of all colors syncronized to the 'd' value
     
     var ka = new TypeColor(0.5,0.5,0.5,1.0,1); //specifies the ambient reflectivity (lightness)
     var kd = new TypeColor(0.5,0.5,0.5,1.0,1); //Diffuse color (hue)
@@ -2268,14 +2583,19 @@ function TypeLegacyMaterial(syncAlpha)
     this.name;    //User can set this to whatever they want
     
     //Public methods
-    this.SetKa         = function (R,G,B,A,p)  {ka.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255); if (keepAlphaInSync){d=ka.GetA(); kd.SetA(d); ks.SetA(d); tf.SetA(d);} }
-    this.SetKd         = function (R,G,B,A,p)  {kd.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255); if (keepAlphaInSync){d=kd.GetA(); ka.SetA(d); ks.SetA(d); tf.SetA(d);} }
-    this.SetKs         = function (R,G,B,A,p)  {ks.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255); if (keepAlphaInSync){d=ks.GetA(); ka.SetA(d); kd.SetA(d); tf.SetA(d);} }
-    this.SetTf         = function (R,G,B,A,p)  {tf.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255); if (keepAlphaInSync){d=tf.GetA(); ka.SetA(d); kd.SetA(d); ks.SetA(d);} }
+    this.SetKa         = function (R,G,B,A,p)  {if (R instanceof TypeColor) {ka = R;} else {ka.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255);} if (keepAlphaInSync){d=ka.GetA(); kd.SetA(d); ks.SetA(d); tf.SetA(d);} }
+    this.SetKd         = function (R,G,B,A,p)  {if (R instanceof TypeColor) {kd = R;} else {kd.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255);} if (keepAlphaInSync){d=kd.GetA(); ka.SetA(d); ks.SetA(d); tf.SetA(d);} }
+    this.SetKs         = function (R,G,B,A,p)  {if (R instanceof TypeColor) {ks = R;} else {ks.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255);} if (keepAlphaInSync){d=ks.GetA(); ka.SetA(d); kd.SetA(d); tf.SetA(d);} }
+    this.SetTf         = function (R,G,B,A,p)  {if (R instanceof TypeColor) {tf = R;} else {tf.SetColor(R,G,B,A,(p===void(0) || p==true)? 1:255);} if (keepAlphaInSync){d=tf.GetA(); ka.SetA(d); kd.SetA(d); ks.SetA(d);} }
     this.Setd          = function (newd)       {d  = ClipValue(newd); if (keepAlphaInSync){ka.SetA(d); kd.SetA(d); ks.SetA(d); tf.SetA(d);}} 
     this.SetNs         = function (newNs)      {ns = ClipValue(newNs,1000);} //Clips to 1000-0 range
     this.SetColor      = function (R,G,B,A,p)  {this.SetKd(R,G,B,A,p);}      //Shortcut directly to the diffuse color
-    this.SetTexture    = function (newTxtr)    {if (newTxtr instanceof TypeImage || newTxtr === void(0)) {texture = newTxtr;} else {Say('WARNING: (SetTexture) Did not receive a valid image object',-1);} }
+    this.SetTexture    = function (newTxtr)    
+    {
+        if (!(newTxtr instanceof TypeImage) && newTxtr !== void(0)) {Say('WARNING: (SetTexture) Did not receive a valid image object',-1); return;} 
+        if (newTxtr && this.name===void(0)) {this.name = newTxtr.name;}
+        texture = newTxtr;
+    }
     this.IsLinkedAlpha = function (state)      {keepAlphaInSync = (state==true);}
     
     //Caution: 
@@ -2322,10 +2642,11 @@ function TypeSceneObjectAppearance (isMasterLevel)
     var seeThruWireframe;    //Boolean. Faces are seethru during wireframe mode
     var showEdges;           //Boolean. Choose to highlight the edges of surfaces
 
-    var material;            //TypeLegacyMaterial. if any of TypeCurveProperties objects have no color, they borrow from material
+    var material;            //TypeLegacyMaterial. This generally defines surface properties
     var wireProperties;      //TypeCurveProperties (defaults for wireframe appearance)
     var edgeProperties;      //TypeCurveProperties (defaults for surface edges appearance)
     var curveProperties;     //TypeCurveProperties (defaults for curve objects appearance)
+    var textProperties;      //TypeTextProperties  (defaults for text objects appearance)
     
     //PRIVATE properties
     var Initialize = function (isMaster)
@@ -2344,6 +2665,7 @@ function TypeSceneObjectAppearance (isMasterLevel)
         wireProperties   = new TypeCurveProperties(void(0),[0.4,0.4,0.4,1.0,true],1);
         edgeProperties   = new TypeCurveProperties(void(0),[0.2,0.2,0.2,1.0,true],1); 
         curveProperties  = new TypeCurveProperties(void(0),[0.2,0.2,0.2,1.0,true],1); 
+        textProperties   = new TypeTextProperties(void(0),'sans-serif',0.15,'left','top',[0.2,0.2,0.8,1.0,true],false,new TypeCurveProperties(void(0),[0,0,1,1.0,true],1)); //textProperties: targetTxt,fnt,sze,alU,alV,clr,outline,outlnProp
     }
     
     //PUBLIC methods----------
@@ -2354,9 +2676,10 @@ function TypeSceneObjectAppearance (isMasterLevel)
     this.SetShowEdges           = function (state)      {showEdges        = (state===void(0) && !isMaster)? void(0) : (state)? true : false; return this;}
     this.SetShowFullColor       = function (state)      {showFullColor    = (state===void(0) && !isMaster)? void(0) : (state)? true : false; return this;}
     this.SetColor               = function (R,G,B,A,p)  {if (!material) {material=new TypeLegacyMaterial();} material.SetColor(R,G,B,A,p); return this;}
-    this.SetWireProperties      = function (newProp)    {if ((newProp===void(0) && !isMaster) || newProp instanceof TypeCurveProperties) {wireProperties=newProp;} else {Say('WARNING: (SetWireProperties) Did not receive a TypeCurveProperties object',-1);}  return this;}
-    this.SetEdgeProperties      = function (newProp)    {if ((newProp===void(0) && !isMaster) || newProp instanceof TypeCurveProperties) {edgeProperties=newProp;} else {Say('WARNING: (SetEdgeProperties) Did not receive a TypeCurveProperties object',-1);}  return this;}
+    this.SetWireProperties      = function (newProp)    {if ((newProp===void(0) && !isMaster) || newProp instanceof TypeCurveProperties) {wireProperties=newProp;}  else {Say('WARNING: (SetWireProperties) Did not receive a TypeCurveProperties object',-1);}  return this;}
+    this.SetEdgeProperties      = function (newProp)    {if ((newProp===void(0) && !isMaster) || newProp instanceof TypeCurveProperties) {edgeProperties=newProp;}  else {Say('WARNING: (SetEdgeProperties) Did not receive a TypeCurveProperties object',-1);}  return this;}
     this.SetCurveProperties     = function (newProp)    {if ((newProp===void(0) && !isMaster) || newProp instanceof TypeCurveProperties) {curveProperties=newProp;} else {Say('WARNING: (SetCurveProperties) Did not receive a TypeCurveProperties object',-1);}  return this;}
+    this.SetTextProperties      = function (newProp)    {if ((newProp===void(0) && !isMaster) || newProp instanceof TypeTextProperties)  {textProperties=newProp;}  else {Say('WARNING: (SetTextProperties) Did not receive a TypeTextProperties object',-1);}  return this;}
     this.SetMaterial            = function (newMtl)     {if (( newMtl===void(0) && !isMaster) ||  newMtl instanceof TypeLegacyMaterial)  {material = newMtl;} else {Say('WARNING: (SetMaterial) Material received was not a TypeLegacyMaterial object',-1);}  return this;}
     
     this.GetShowFullColor       = function () {return showFullColor;}
@@ -2369,6 +2692,7 @@ function TypeSceneObjectAppearance (isMasterLevel)
     this.GetWireframeProperties = function () {return wireProperties;}
     this.GetEdgeProperties      = function () {return edgeProperties;}
     this.GetCurveProperties     = function () {return curveProperties;}
+    this.GetTextProperties      = function () {return textProperties;}
     this.GetWireframeColor      = function () {return (wireProperties)? wireProperties.GetColor() : void(0);}
     this.GetEdgeColor           = function () {return (edgeProperties)? edgeProperties.GetColor() : void(0);}
     this.GetCurveColor          = function () {return (curveProperties)? curveProperties.GetColor() : void(0);}
@@ -2411,8 +2735,9 @@ function TypeSurfaceProperties (targetSrf, normalsRef, textureUVsRef)
     
     //PRIVATE properties
     var targetSurface;   //Mandatory link to a surface geometry object (otherwise properties have no meaning)
+    var isVisible;       //Boolean
     
-    var normalsObj;      //TypeSurfaceNormals object. (each surface *must* have surface normals or else it will not render on screen)
+    var normalsObj;      //TypeSurfaceNormals object. (each surface *must* have surface normals or else it will not render on a webGL screen)
     var textureUVsObj;   //TypeSurfaceTextureCoord object. this defines the UV coordinates for whatever texture is in the material property. Textures can be any image but the UV coordinates are intimate to the surface vertices
     
     var material;        //optional: TypeLegacyMaterial object representing how the surface area interacts with light (this is where a texture object, if any, lives also)
@@ -2422,8 +2747,9 @@ function TypeSurfaceProperties (targetSrf, normalsRef, textureUVsRef)
     //PRIVATE methods
     var Initialize    = function (Srf, nRef, tRef)
     {    
+        isVisible = true;
         if (!(Srf instanceof TypeSurface)) {Say('WARNING: (TypeSyrfaceProperties) Object instance did not receive a target surface.',-1); return;}
-        
+
         targetSurface = Srf;
         ChangeNormals (nRef);
         ChangeUVs (tRef);
@@ -2452,27 +2778,29 @@ function TypeSurfaceProperties (targetSrf, normalsRef, textureUVsRef)
     }
     
     //PUBLIC methods
+    this.GetIsVisible      = function ()         {return isVisible;}
     this.GetTarget         = function ()         {return targetSurface;}
-    this.GetTexture        = function ()         {if(material instanceof TypeLegacyMaterial) {return material.GetTexture();} else {return void(0);}}
+    this.GetTexture        = function ()         {return (material instanceof TypeLegacyMaterial)? material.GetTexture() : void(0);}
     this.GetMaterial       = function ()         {return material;}
     this.GetNormals        = function ()         {return normalsObj;}
     this.GetTextureUVs     = function ()         {return textureUVsObj;}
     this.GetWireProperties = function ()         {return wireProperties;}
     this.GetEdgeProperties = function ()         {return edgeProperties;}
-    this.GetWireframeColor = function ()         {return (wireProperties && wireProperties.GetColor()      )? wireProperties.GetColor()       : void(0);}
-    this.GetWireThickness  = function ()         {return (wireProperties && wireProperties.GetThickness()  )? wireProperties.GetThickness()   : void(0);}
-    this.GetWireDash       = function ()         {return (wireProperties && wireProperties.GetDashPattern())? wireProperties.GetDashPattern() : void(0);}
-    this.GetEdgeColor      = function ()         {return (edgeProperties && edgeProperties.GetColor()      )? edgeProperties.GetColor()       : void(0);}
-    this.GetEdgeThickness  = function ()         {return (edgeProperties && edgeProperties.GetThickness()  )? edgeProperties.GetThickness()   : void(0);}
-    this.GetEdgeDash       = function ()         {return (edgeProperties && edgeProperties.GetDashPattern())? edgeProperties.GetDashPattern() : void(0);}
+    this.GetWireframeColor = function ()         {return (wireProperties && wireProperties.GetColor()              )? wireProperties.GetColor()       : void(0);}
+    this.GetEdgeColor      = function ()         {return (edgeProperties && edgeProperties.GetColor()              )? edgeProperties.GetColor()       : void(0);}
+    this.GetWireThickness  = function ()         {return (wireProperties && wireProperties.GetThickness()!==void(0))? wireProperties.GetThickness()   : void(0);}
+    this.GetEdgeThickness  = function ()         {return (edgeProperties && edgeProperties.GetThickness()!==void(0))? edgeProperties.GetThickness()   : void(0);}
+    this.GetWireDash       = function ()         {return (wireProperties && wireProperties.GetDashPattern()        )? wireProperties.GetDashPattern() : void(0);}
+    this.GetEdgeDash       = function ()         {return (edgeProperties && edgeProperties.GetDashPattern()        )? edgeProperties.GetDashPattern() : void(0);}
     this.GetColor          = function ()         {return (material)? material.GetColor() : void(0);}
     
     this.GenerateNormals   = function ()         {normalsObj.GenerateNormals();}
     this.SetWireProperties = function (newProp)  {if (newProp===void(0) || newProp instanceof TypeCurveProperties) {wireProperties=newProp;} else {Say('WARNING: (SetWireProperties) Did not receive a TypeCurveProperties object',-1);} }
     this.SetEdgeProperties = function (newProp)  {if (newProp===void(0) || newProp instanceof TypeCurveProperties) {edgeProperties=newProp;} else {Say('WARNING: (SetEdgeProperties) Did not receive a TypeCurveProperties object',-1);} }
-    this.SetMaterial       = function (newMtl)   {ChangeMaterial(newMtl);}
+    this.SetMaterial       = function (newMtl)   {ChangeMaterial(newMtl); return material;}
     this.SetTextureUVs     = function (newUVs)   {ChangeUVs(newUVs);}
     this.SetNormals        = function (newNorms) {ChangeNormals(newNorms);}
+    this.SetIsVisible      = function (state)    {isVisible = (state)? true : false;}
     
     this.ProjectPlanar     = function (bLeft,bRight,tLeft,newMaterial,tMatrix)
     {
@@ -2489,7 +2817,8 @@ function TypeCurveProperties (targetCrv,crvColor, crvThickness, crvDashPattern)
 {   //Holds property information for a curve object 
 
     //PRIVATE properties
-    var targetCurve;   //For curves target is optional
+    var targetCurve; //This is optional for curve objects. The TypeCurveProperties object is also used to provide master defaults to the apearance object (where the target curves are unkown)
+    var isVisible;   //Boolean
     
     //Note: It is tempting to include fill-color in these properties (like in illustration programs) -->
     //  --> however a fill-color property would make sense only as a fill area bound by planar curves 
@@ -2502,8 +2831,9 @@ function TypeCurveProperties (targetCrv,crvColor, crvThickness, crvDashPattern)
     //PRIVATE methods
     var Initialize       = function (tCrv, newColor, newThickness, newDashPattern)
     {
+        isVisible = true;
         if (tCrv===void(0) || tCrv instanceof TypeCurve) {targetCurve = tCrv} else {Say('WARNING: (TypeCurveProperties) Did not receive a TypeCurve object as target',-1); return;}
-        
+
         ChangeColor (newColor);
         ChangeThickness (newThickness);
         ChangeDashPattern (newDashPattern);
@@ -2514,7 +2844,7 @@ function TypeCurveProperties (targetCrv,crvColor, crvThickness, crvDashPattern)
         //For anything else create a new local TypeColor object
         
         if(newColor===void(0)) {color=void(0); return;}
-        if(newColor instanceof TypeColor) {color = newColor; return;}
+        if(newColor instanceof TypeColor) {color = newColor; return;} //allows assignment by reference
         if(newColor instanceof TypeLegacyMaterial) {color = TypeLegacyMaterial.GetColor(); return;}
         
         color = new TypeColor (newColor);
@@ -2539,11 +2869,13 @@ function TypeCurveProperties (targetCrv,crvColor, crvThickness, crvDashPattern)
     }
     
     //PUBLIC methods
+    this.GetIsVisible     = function () {return isVisible;}
     this.GetTarget        = function () {return targetCurve;}
     this.GetColor         = function () {return color;}
     this.GetThickness     = function () {return thickness;}
     this.GetDashPattern   = function () {return dashPattern;}
     
+    this.SetIsVisible     = function (state)          {isVisible = (state)? true : false;}
     this.SetColor         = function (newColor)       {ChangeColor(newColor);}
     this.SetFillColor     = function (newColor)       {ChangeFillColor(newColor);}
     this.SetThickness     = function (newThickness)   {ChangeThickness(newThickness);}
@@ -2552,9 +2884,74 @@ function TypeCurveProperties (targetCrv,crvColor, crvThickness, crvDashPattern)
     Initialize (targetCrv, crvColor, crvThickness, crvDashPattern);
 }
 //------------------------------------------------------------------------------------------
-function TypeTextProperties ()
-{
-    //To DO ....
+function TypeTextProperties (targetTxt,fnt,sze,alU,alV,clr,outline,outlnProp)
+{   
+    //Private properties
+    var targetText; //This is optional. The TypeTextProperties object is also used to provide defaults to the master apearance object where the target text objects are unknown
+    var isVisible;  //Boolean
+    
+    var color;
+    var font;
+    var size;       //In world units
+    var alignment;
+    var outlineProperties;
+    var isOutline;
+    
+    //Private methods
+    var Initialize = function (targetT,fnt,sze,alU,alV,clr,outln,outlnProp)
+    {
+        isVisible = true;
+        if (targetT === void(0) || targetT instanceof TypeText) {targetText = targetT;} else {Say('WARNING: (Initialize) Did not receive a TypeText object as target',-1); return;}
+        
+        ChangeFont(fnt);
+        ChangeSize(sze);
+        ChangeAlign(alU,alV);
+        ChangeColor(clr);
+        ChangeIsOutline(outln);
+        ChangeOutlineProperties(outlnProp)
+    }
+    var ChangeFont      = function (fnt)     {if (IsString(fnt)) {font = fnt;} else if(fnt===void(0)) {font=void(0);}}
+    var ChangeSize      = function (sze)     {if (!isNaN(sze)) {size = sze;} else if (sze==void(0)){size=void(0);}}
+    var ChangeColor     = function (clr)     {if (clr instanceof TypeColor) {color = clr;} else if (clr!==void(0)) {color = new TypeColor(clr);} else {color=void(0);}}
+    var ChangeIsOutline = function (outln)   {isOutline = (outln===void(0))? void(0) : (outln)? true:false;}
+    var ChangeAlign     = function (alU,alV) 
+    {
+        if (alU===void(0) && alV==void(0)) {alignment=void(0); return;} 
+        if (IsString(alU) && (alU=='left' || alU=='right' || alU=='center')) {if (alignment) {alignment.horizontal=alU;} else {alignment = NewAlignmentObj(alU,void(0));} }
+        if (IsString(alV) && (alV=='top' || alV=='bottom' || alV=='middle')) {if (alignment) {alignment.vertical=alV;} else {alignment = NewAlignmentObj(void(0),alv);} }
+    }
+    var ChangeOutlineProperties = function (outlnProp)
+    {
+        if (outlnProp===void(0)) {outlineProperties = void(0); return;} 
+        if (!(outlnProp instanceof TypeCurveProperties)) {Say('WARNING: (ChangeOutlineProperties) Did not receive a TypeCurve object',-1); return;}
+        outlineProperties = outlnProp;
+    }
+    var NewAlignmentObj = function (U,V) {return {horizontal:U,vertical:V};}
+    
+    //Public methods
+    this.GetIsVisible = function () {return isVisible;}
+    this.GetTarget    = function () {return targetText}
+    this.GetFont      = function () {return font;}
+    this.GetSize      = function () {return size;}
+    this.GetColor     = function () {return color;}
+    this.GetAlignment = function () {return alignment;}
+    
+    this.GetOutlineProperties = function ()  {return outlineProperties;}
+    this.SetOutlineProperties = function (p) {ChangeOutlineProperties(p);}
+    
+    this.SetIsVisible = function (state) {isVisible = (state)? true : false;}
+    this.SetFont      = function (fnt)   {ChangeFont(fnt);}
+    this.SetIsOutline = function (state) {ChangeIsOutline(state);}
+    this.SetIsWraping = function (state) {ChangeIsWrap(state);}
+    this.SetHorAlign  = function (alU)   {ChangeAlign(alU);}
+    this.SetVertAlign = function (alV)   {ChangeAlign(void(0),alV);}
+    this.SetColor     = function (clr)   {ChangeColor(clr);}
+    this.SetSize      = function (sze)   {ChangeSize(sze);}
+    
+    this.IsOutline    = function () {return isOutline;}
+    
+    //Initialization
+    Initialize (targetTxt,fnt,sze,alU,alV,clr,outline,outlnProp);
 }
 //------------------------------------------------------------------------------------------
 function TypePointLight()
@@ -2694,23 +3091,30 @@ function TypeSceneObject(fromParent)
     }
     this.GetPiece = function (query,needIdx) 
     {
-        if (parentObject) {return parentObject.GetPiece(query,needIdx);}
+        //Query can be either an index or a string
+        //the needIdx flag is used for string queries in order to return the index of the object found instead of the object itself
         
-        if (IsString(query)) {query = this.GetPieceIdxByName(query);}
+        if (parentObject) {return parentObject.GetPiece(query,needIdx);}
+
         if (query===void(0)) {query = pieceArr.length-1;} //The last piece in the array
+        if (IsString(query)) {query = this.GetPieceIdxByName(query);}
         if (Number.isInteger (query)) {return (needIdx)? query : pieceArr[query];}
         
         Say('WARNING: (GetPiece) The requested piece <'+query+'> was not found',-1);
         return void(0);
     }
-    this.GetPropertiesForPiece = function (query,needIdx)
+    this.GetPropertiesForPiece = function (query,apparent,needIdx)
     {
+        //Query can be either an index or a string
+        //the needIdx flag is used for string queries in order to return the index of the object found instead of the object itself
+        //the apparent flag returns the parent object properties (if this is a child object)
         //Returns a property object (including void), if this is a standalone object
         //Returns the parent object's property object, if this is a child object
         var totalPieces = this.GetPieceCount();
         if (totalPieces == 0 ) {return;}
-        if (IsString(query)) {query = this.GetPieceIdxByName(query);}
-        if (Number.isInteger (query)) {return (needIdx)? query : (propertiesForPiece[query]!==void(0) || !parentObject)? propertiesForPiece[query] : parentObject.GetPropertiesForPiece(query,needIdx);}
+        if (query===void(0)) {query = totalPieces-1;}
+        if (IsString(query)) {query = this.GetPieceIdxByName(query);} //gets the index of the object found
+        if (Number.isInteger (query)) {return (needIdx)? query : (propertiesForPiece[query]!==void(0) || !parentObject || !apparent)? propertiesForPiece[query] : parentObject.GetPropertiesForPiece(query,false,needIdx);}
         
         Say('WARNING: (GetPropertiesForPiece) The requested piece <'+query+'> was not found. Not properties returned.',-1);
         return void(0);
@@ -2729,15 +3133,17 @@ function TypeSceneObject(fromParent)
     }
     this.GetPieceCount = function () {return (parentObject)? parentObject.GetPieceCount() : pieceArr.length;}
     this.GetPropCount  = function () {return propertiesForPiece.length;}
-    this.AddPiece      = function (newPiece) 
+    this.AddPiece      = function (newPiece,newPieceProperties) 
     {
         if (parentObject) {Say('WARNING: (AddPiece) This is a child object linking to a parent and is not allowed to add a piece.',-1); return;}
-        if (!(newPiece instanceof TypeSurface || newPiece instanceof TypeCurve)) {Say('WARNING: (AddPiece) Could not add SceneObject piece. Received neither a surface nor a curve object',-1); return;}
+        if (!(newPiece instanceof TypeSurface || newPiece instanceof TypeCurve || newPiece instanceof TypeText)) {Say('WARNING: (AddPiece) Could not add SceneObject piece. Received neither a surface, nor a curve object, nor a text object',-1); return;}
         
         pieceArr.push(newPiece); 
-        lastModified = Date.now();
-        
         CheckPlanar(newPiece);
+        
+        if (newPieceProperties) {this.AddPieceProperties(newPieceProperties);}
+        
+        lastModified = Date.now();
         return pieceArr.length;
     }
     this.AddPropertiesForPiece = function (query) { return this.AddPieceProperties(void(0),query); } //An alias for AddPieceProperties without supplying an object
@@ -2754,9 +3160,10 @@ function TypeSceneObject(fromParent)
         //If needed create a new empty properties object
         if (newPieceProperties === void(0) && targetPiece instanceof TypeSurface) {newPieceProperties = new TypeSurfaceProperties(targetPiece);} 
         else if (newPieceProperties === void(0) && targetPiece instanceof TypeCurve) {newPieceProperties = new TypeCurveProperties(targetPiece);}
+        else if (newPieceProperties === void(0) && targetPiece instanceof TypeText) {newPieceProperties = new TypeTextProperties(targetPiece);}
         
         //In case the original argument contins an invalid object 
-        if (!(newPieceProperties instanceof TypeSurfaceProperties || newPieceProperties instanceof TypeCurveProperties)) {Say('WARNING: (AddPieceProperties) Did not receive a valid properties object',-1); return;}
+        if (!(newPieceProperties instanceof TypeSurfaceProperties || newPieceProperties instanceof TypeCurveProperties || newPieceProperties instanceof TypeTextProperties)) {Say('WARNING: (AddPieceProperties) Did not receive a valid properties object',-1); return;}
         
         //Note: piece properties still links to a piece in the parent object (if this is a child object)
         //Effectively (if this is a child object) we end up with a piece in the parent object potentially being linked multiple times accross many child objects
@@ -2896,7 +3303,8 @@ function TypeScene()
     {   //Takes one of the source arrays and looks up an object in it. Will return the object itself or its index if asIndex==true
         
         var lookupByName = true;
-        var isTexture    = (sourceArr==textures)? true : false; //if texture we also check the filename along with the name
+        var isTexture    = (sourceArr==textures)?  true : false; //if texture we also check the filename along with the name
+        var isMaterial   = (sourceArr==materials)? true : false; //if texture we also check the filename along with the name
         var arrLen       = sourceArr.length;
         
         if (thisThing===void(0) || arrLen==0) {return;} //Nothing to do
@@ -2910,11 +3318,28 @@ function TypeScene()
         for (let idx=0; idx<arrLen; idx++) 
         { 
             if (!lookupByName && (sourceArr[idx]==thisThing || thisThing.name!=void(0) && (sourceArr[idx].name==thisThing.name || isTexture && sourceArr[idx].GetFileName()==thisThing.GetFileName()) ) || 
-                 lookupByName && (sourceArr[idx].name==thisThing || isTexture && sourceArr[idx].GetFileName()==thisThing) ) {return (asIndex)? idx : sourceArr[idx];} 
+                 lookupByName && (sourceArr[idx].name==thisThing || isTexture && sourceArr[idx].GetFileName()==thisThing || isMaterial && sourceArr[idx].GetTexture() && sourceArr[idx].GetTexture().GetFileName()==thisThing) ) {return (asIndex)? idx : sourceArr[idx];} 
         }
     
         //Nothing found
         return void(0);
+    }
+    var UpdateAspectRatio = function (texture,pointLL,pointLR,topPoint)
+    {   //Updates aspect ratio asynchronously. 
+        //Helper method for this.AddImagePlane()
+        
+        //Wait for the image to load
+        if (texture.IsStillLoading()) {setTimeout(UpdateAspectRatio,500,texture,pointLL,pointLR,topPoint); texture.SetLoadHold(true); return;} 
+       
+        var aspect     = texture.GetAspectRatio();
+        var vecLLtoLR  = pointLR.Minus(pointLL);
+        var vecLLtoTL  = topPoint.Minus(pointLL).AsOrthoTo(vecLLtoLR); 
+        var oldAspect  = vecLLtoLR.Length() / vecLLtoTL.Length();
+      
+        if (aspect>oldAspect) {pointLR.Set(pointLL.Plus(vecLLtoLR.ScaleBy(aspect/oldAspect)),3);}
+        if (aspect<oldAspect) {topPoint.Set(pointLL.Plus(vecLLtoTL.ScaleBy(oldAspect/aspect)),3);}
+
+        texture.SetLoadHold(false); //Release the texture hold
     }
     
     //Public methods
@@ -2970,7 +3395,35 @@ function TypeScene()
         //Return the object just added (this way, if newly created above, we get its reference handle)
         return newObj;
     }
-    this.AreTexturesStillLoading  = function ()          {var textureCount = textures.length; for (let i=0; i<textureCount; i++){ if (!textures[i].IsStillLoading()) {return false;} } return true; }
+    this.AddImagePlane = function (sourceFile,pointLL,pointLR,topPoint,preserveAspect,scale) 
+    {   //Sets up and returns a sceneObject using the image as texture
+        if (!sourceFile || !pointLL || !pointLR || !topPoint) {Say('WARNING: (AddImagePlane) Did not receive all necessary arguments',-1); return;}
+        if (scale===void(0) || isNaN(scale)) {scale = 1;}
+        
+        var plane       = new TypePlane(pointLL,pointLR,topPoint); if (!plane.IsProper()) {Say('WARNING: (AddImagePlane) Points supplied do not define a plane',-1); return;}
+        var filename    = GetPathComponents(sourceFile).fileName;
+        var material    = Lookup(materials,filename);  //Try to find a material with this texture: Materials with a texture also store the texture's filename as a material name
+        var texture     = (!material)? Lookup(textures,filename) : material.GetTexture(); 
+        var texRect     = new TypeCurve();
+        var texSurf     = new TypeSurface();
+        var texSurfProp = new TypeSurfaceProperties(texSurf);
+        var sceneObject = new TypeSceneObject();
+        
+        if(material && !texture) {material = void(0);} //material was found with the name = filename but the texture object was missing
+        if(!texture)  {texture = new TypeImage(sourceFile);}
+        if(!material) {material = new TypeLegacyMaterial(); material.SetTexture(texture);}
+        if(scale!=1)  {plane.GetB().SetEqualTo(plane.GetA().Plus(plane.GetB().Minus(plane.GetA()).ScaleBy(scale))); plane.GetC().SetEqualTo(plane.GetA().Plus(plane.GetC().Minus(plane.GetA()).ScaleBy(scale)));}
+        if(preserveAspect) {UpdateAspectRatio(texture,plane.GetA(),plane.GetB(),plane.GetC());}
+
+        texRect.AddRectangle(plane.GetA(),plane.GetB(),plane.GetC());
+        texSurf.AddFillFromPlanarBoundary(texRect);
+        texSurfProp.SetMaterial(material);
+        sceneObject.AddPiece(texSurf,texSurfProp);
+        sceneObject.name = 'TexturePlane <'+filename+'>';
+        
+        return this.AddObject(sceneObject);
+    }
+    this.AreTexturesStillLoading  = function ()          {var textureCount = textures.length; for (let i=0; i<textureCount; i++){ if (textures[i].IsStillLoading() || textures[i].GetLoadHold()) {return true;} } return false; }
     this.GetCamera                = function ()          {return camera;}
     this.GetObjectCount           = function ()          {return objects.length;}
     this.GetTextureCount          = function ()          {return textures.length;}
@@ -3056,6 +3509,7 @@ function TypeImage (sourceFilePath)
     var imageObject;         //the actual image object
     var isReady  = false;    //if still loading -> false, if failed ->false
     var isFailed = false;    //if still loading -> false
+    var loadHold;            //Boolean. Artifically make the image appear it is still loading
     var fileName;
     var filePath;
     var lastModified;
@@ -3075,7 +3529,7 @@ function TypeImage (sourceFilePath)
         imageObject.src = fPath;
     }
     var SetCompleted = function () {isReady = true; isFailed=false; fileName=GetPathComponents(imageObject.src).fileName; lastModified = Date.now(); if(!this.name) {this.name=fileName;} Say('NOTE: (TypeImage) Successfully loaded image <'+fileName+'>',-1);}
-    var SetFailed     = function () {isReady = false; isFailed=true;Say('WARNING: (TypeImage) Failed to load image <'+GetPathComponents(imageObject.src).fileName+'>',-1);}
+    var SetFailed    = function () {isReady = false; isFailed=true;Say('WARNING: (TypeImage) Failed to load image <'+GetPathComponents(imageObject.src).fileName+'>',-1);}
     
     //Public functions
     this.IsLoaded        = function ()  {return isReady;}
@@ -3089,6 +3543,8 @@ function TypeImage (sourceFilePath)
     this.GetHeight       = function ()  {return imageObject.height;}
     this.GetAspectRatio  = function ()  {return imageObject.width / imageObject.height;}
     this.GetLastModified = function ()  {return lastModified;}
+    this.GetLoadHold     = function ()  {return loadHold;}
+    this.SetLoadHold     = function (state) {loadHold = (state)? true:false;}
     this.SetPath         = function (newPath,preserveName)     
     {
         if (!IsString(newPath)) {Say('WARNING: (SetPath) Supplied path was either empty or not a string',-1); return;}
@@ -3099,6 +3555,7 @@ function TypeImage (sourceFilePath)
     
     //Initialization
     Initialize (sourceFilePath);
+    SetCompleted.bind(this);
 }
 //------------------------------------------------------------------------------------------
 function TypeOBJFileLoader (sourceFilePath)
@@ -3352,7 +3809,7 @@ function TypeOBJFileLoader (sourceFilePath)
                 var index1 = (faceVertCount < 1) ? void(0) : Number(objLine.dataWords[0][0]) - currentSrfOBJStartIdx;
                 var index2 = (faceVertCount < 2) ? void(0) : Number(objLine.dataWords[1][0]) - currentSrfOBJStartIdx;
                 var index3 = (faceVertCount < 3) ? void(0) : Number(objLine.dataWords[2][0]) - currentSrfOBJStartIdx;
-                var index4 = (faceVertCount < 4) ? void(0) : Number(objLine.dataWords[3][0]) - currentSrfOBJStartIdx;
+                var index4 = (faceVertCount < 4) ? void(0) : Number(objLine.dataWords[3][0]) - currentSrfOBJStartIdx; 
                 currentSurface.AddMeshFace(index1, index2, index3, index4);
                 continue;
             }
@@ -3395,4 +3852,4 @@ function TypeOBJFileLoader (sourceFilePath)
     //Initialization
     Initialize (sourceFilePath);
 }
-//NOTE: It is possible to use __proto__ to create inherritance chains but at the current time it is not recommended for performance reasons (2017-6-27))
+//NOTE: It is possible to use __proto__ to create inherritance chains but at the current time it is not recommended for performance reasons (2017-6-27)))
