@@ -10,7 +10,7 @@
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeCSSobject (obj)
 {
-    //Properties------------
+    //Properties Private------------
     var  CSSobject             = obj; if (!CSSobject) {Say('WARNING: (TypeCSSobject) Did not receive an object during initialization',-1); return;}
     var  origParentBox         = CSSobject.parentElement.getBoundingClientRect();
     //Note: getBoundingClientRect() --> The amount of scrolling that has been done of the viewport area (or any other scrollable element) is taken into account when computing the bounding rectangle. 
@@ -30,7 +30,36 @@ function TypeCSSobject (obj)
     var  origZindex             = (isNaN(origStyle.zIndex))? 0 : Number(origStyle.zIndex);
     var  origWinScroll          = {left:window.pageXOffset,top:window.pageYOffset};
     
-    //Methods---------------
+    //Methods Private --------------
+    var Initialize       = function ()
+    {
+        var filter       = origStyle.getPropertyValue("filter");
+        var webkitFilter = origStyle.getPropertyValue("-webkit-filter");
+        if (filter.search("grayscale")>-1) origGrayscale = Number(100*filter.match(/\d+/));
+        else if (webkitFilter.search("grayscale")>-1) origGrayscale = Number(100*webkitFilter.match(/\d+/));
+
+        ReadInlineStyle();
+    }
+    
+    var ReadInlineStyle  = function ()
+    {
+      if (CSSobject.style.cssText === "") return;
+      
+      var stylesArr   = CSSobject.style.cssText.split(";"); 
+      var stylesCount = stylesArr.length;
+    
+      for (var i=0;i<stylesCount;i++)
+      {
+         if (stylesArr[i]==="") continue;
+         
+         let oneStyle = stylesArr[i].split(":"); oneStyle[0]=oneStyle[0].trim(); 
+         oneStyle[0]  = oneStyle[0].replace( /\-+[a-z]/g, function(str){return str[1].toUpperCase()} );
+         origInlineStyle[oneStyle[0]] = oneStyle[1];    //adding a key-value pair
+      }
+            
+    }
+    
+    //Methods Public ---------------
     this.GetObjectRef    = function ()  {return CSSobject;}
     this.GetOrigBox      = function ()  {return origBoundingBox;}
     this.GetOrigScroll   = function ()  {return origWinScroll;}
@@ -51,7 +80,7 @@ function TypeCSSobject (obj)
         r = ClipValue(r,1);
         var grayscaleString          = "grayscale("+Math.floor(origGrayscale*r)+"%)";
         CSSobject.style.filter       = grayscaleString;
-        CSSobject.style.WebkitFilter = grayscaleString;
+        CSSobject.style.WebkitFilter = grayscaleString; 
     }    
     this.ApplyTransform    = function (transformStr)
     {
@@ -80,40 +109,12 @@ function TypeCSSobject (obj)
     this.SetBorderColor      = function (targetColor)         {CSSobject.style.borderColor = (new TypeColor (targetColor)).GetCSScolor();}
     this.GetBorderColor      = function ()                    {return origBorderColor;}
     this.GetRightBorderColor = function ()                    {return origBorderRightColor;}
-    this.SetZindex           = function (z)                    {CSSobject.style.zIndex=z.toString();}
+    this.SetZindex           = function (z)                   {CSSobject.style.zIndex=z.toString();}
     this.ResetZindex         = function ()                    {CSSobject.style.zIndex = (origInlineStyle.zIndex === undefined)? "" : origInlineStyle.zIndex;}
     this.TextColorTo         = function (tergetColor,percent) {CSSobject.style.color = origTextColor.TransitionTo(tergetColor,percent).GetCSScolor();}
     this.BackgroundColorTo   = function (tergetColor,percent) {CSSobject.style.backgroundColor = origBackgroundColor.TransitionTo(tergetColor,percent).GetCSScolor();}
     this.toString            = function ()                    {return "[TypeCSSobject]";}
-    
-    var Initialize           = function ()
-    {
-        var filter        = origStyle.getPropertyValue("filter");
-        var webkitFilter = origStyle.getPropertyValue("-webkit-filter");
-        if (filter.search("grayscale")>-1) origGrayscale = Number(filter.match(/\d+/));
-        else if (webkitFilter.search("grayscale")>-1) origGrayscale = Number(100*webkitFilter.match(/\d+/));
-
-        ReadInlineStyle();
-    }
-    
-    var ReadInlineStyle      = function ()
-    {
-      if (CSSobject.style.cssText === "") return;
-      
-      var stylesArr   = CSSobject.style.cssText.split(";"); 
-      var stylesCount = stylesArr.length;
-    
-      for (var i=0;i<stylesCount;i++)
-      {
-         if (stylesArr[i]==="") continue;
-         
-         let oneStyle = stylesArr[i].split(":"); oneStyle[0]=oneStyle[0].trim(); 
-         oneStyle[0]  = oneStyle[0].replace( /\-+[a-z]/g, function(str){return str[1].toUpperCase()} );
-         origInlineStyle[oneStyle[0]] = oneStyle[1];    //adding a key-value pair
-      }
-            
-    }
-    
+        
     //Initialization
     Initialize();
 }
@@ -213,12 +214,12 @@ function TypeMenuCSS ()
     
     //Methods------------------
     this.AddButton      = function (thisObj,T,elast,mountPos,restPos,offset,moveFade) {buttonArr.push(new TypeSpringCSS(thisObj,T,elast,mountPos,restPos,offset,moveFade));}
-    this.ReactTo        = function (point) 
+    this.ReactTo        = function (point,reactionBiasFactor) 
     {
         if(this.triggerObj===void(0)) return;
 
-        var trigHold = (this.triggerHoldObj===undefined)? false : (this.triggerHoldObj.ReactTo(point)>0)? false : true;
-        var trig = (this.triggerObj.ReactTo(point)>0)? false : true;; //if "point" is undefined triggerObj checks its DOM events and returns (-1 or Infinity)
+        var trigHold = (this.triggerHoldObj===void(0))? false : (this.triggerHoldObj.ReactTo(point)>0)? false : true;
+        var trig = (this.triggerObj.ReactTo(point,reactionBiasFactor)>0)? false : true; //if "point" is undefined triggerObj checks its DOM events and returns (-1 or Infinity)
         var count = buttonArr.length;
         for (var i=0;i<count;i++) 
         { 
@@ -239,30 +240,39 @@ function TypeMenuCSS ()
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeTriggerArea(a,b,c,d) 
 {
+    //Private properties
     var bodyObj;
     var shapeType;
     var shape         = [];
     var isActive      = false;
     var useDOMtrigger = false;
-
-    this.SetAsRectangle = function (x1,y1,x2,y2)    {shape=[new TypeXYZw(x1,y1), new TypeXYZw(x2,y2)]; shapeType="rectangle";}
+    
+    
+    //Public methods
+    this.SetAsRectangle = function (x1,y1,x2,y2)    {shape=[new TypeXYZw(x1,y1), new TypeXYZw(x2,y2)]; shapeType="rectangle"; Say('Shape:'+shape,-1);}
     this.SetAsCircle    = function (x1,y1,r)        {shape=[new TypeXYZw(x1,y1),r]; shapeType="circle";}
     this.GetDistanceTo  = function (point)
     {
         if (shapeType=="circle") return point.Minus(shape[0]).Length() - shape[1];
         if (shapeType=="rectangle")
-        {
-            var result = -1;
-            if      (point.y<shape[0].y && point.x<shape[1].x && point.x>shape[0].x) result = shape[0].y - point.y;
-            else if (point.y>shape[1].y && point.x<shape[1].x && point.x>shape[0].x) result = point.y - shape[1].y;
-            else if (point.x<shape[0].x && point.y>shape[0].y && point.y<shape[1].y) result = shape[0].x - point.x;
-            else if (point.x>shape[1].x && point.y<shape[1].y && point.y>shape[0].y) result = point.x - shape[1].x;
-            else if (point.x<shape[0].x && point.y<shape[0].y) result = point.Minus(shape[0]).Length();
-            else if (point.x>shape[1].x && point.y<shape[0].y) result = point.Minus(new TypeXYZw(shape[1].x,shape[0].y)).Length();
-            else if (point.x>shape[1].x && point.y>shape[1].y) result = point.Minus(shape[1]).Length();
-            else if (point.x<shape[0].x && point.y>shape[1].y) result = point.Minus(new TypeXYZw(shape[0].x,shape[1].y)).Length();
+        {   //returns perpendicular distance to the nearest rectangle edge
+            var relPoint     = point.Minus(shape[0]);
+            var relEndCorner = shape[1].Minus(shape[0]);
 
-            return result;
+            //Bring the rectangle to the first quadrant
+            if (relEndCorner.x<0) {relPoint.x-=2*relEndCorner.x; relEndCorner.x=-relEndCorner.x}
+            if (relEndCorner.y<0) {relPoint.y-=2*relEndCorner.y; relEndCorner.y=-relEndCorner.y}
+            
+            //Test horizontal and vertical zones of the rectange
+            if (relPoint.y>=0 && relPoint.y<=relEndCorner.y) {return (relPoint.x>=relEndCorner.x)? relPoint.x-relEndCorner.x : (relPoint.x<=0)? -relPoint.x : -1;}
+            if (relPoint.x>=0 && relPoint.x<=relEndCorner.x) {return (relPoint.y>=relEndCorner.y)? relPoint.y-relEndCorner.y : (relPoint.y<=0)? -relPoint.y : -1;}
+            //Test the outer corner zones
+            if (relPoint.x<0 && relPoint.y<0) {return relPoint.Length();}
+            if (relPoint.x>0 && relPoint.y<0) {relPoint.x-=relEndCorner.x; return relPoint.Length();}
+            if (relPoint.x>0 && relPoint.y>0) {return relPoint.Minus(relEndCorner).Length();}
+            if (relPoint.x<0 && relPoint.y>0) {relPoint.y-=relEndCorner.y; return relPoint.Length();}
+            
+            return -1;
         }
     }
     this.SetDOMtrigger = function (state)
@@ -277,42 +287,46 @@ function TypeTriggerArea(a,b,c,d)
         bodyObj=thisCSSobject; 
         this.SetAsRectangle(bodyObj.GetLeft(),bodyObj.GetTop(),bodyObj.GetRight(),bodyObj.GetBottom());
     }
-    this.ReactTo  = function (point)  
+    this.ReactTo  = function (point,reactionBiasFactor)  
     { 
-        if (useDOMtrigger==true  && point===undefined) {return (isActive==true)? -1 : Infinity;}
-        if (useDOMtrigger==false && point===undefined) {return NaN;}
+        if (useDOMtrigger==true  && point===void(0)) {return (isActive==true)? -1 : Infinity;}
+        if (useDOMtrigger==false && point===void(0)) {return NaN;}
+        if (reactionBiasFactor===void(0)) {reactionBiasFactor=1;}
 
         var dist = this.GetDistanceTo(point); 
-        if(dist<0) {isActive=true;} else {isActive=false;}
+        if(dist<=0) {isActive=true;} else {isActive=false;}
         if (bodyObj instanceof TypeCSSobject)
         {
             //A CSS object will react to proximity
-            var hotRad = (bodyObj.GetWidth()<bodyObj.GetHeight())? bodyObj.GetHeight()/2 : bodyObj.GetWidth()/2;
-            var ratio  = dist/hotRad;
-            bodyObj.ScaleGrayscale(ratio); 
-            bodyObj.TopOffOpacity(ratio);
+            var bodyObjWidth  = bodyObj.GetWidth();
+            var bodyObjHeight = bodyObj.GetHeight();
+            var hotRad = (bodyObjWidth<bodyObjHeight)? bodyObjHeight/2 : bodyObjWidth/2;
+            var ratio  = dist/(reactionBiasFactor*hotRad); //A reactionBiasFactor>1 lengthens the reaction time
+            bodyObj.ScaleGrayscale(ratio);  //Carefull: this will scale the existing grayscale value. If the grayscale is 0% nothing happens.
+            bodyObj.TopOffOpacity(ratio);   //Carefull: this will top off the opacity. If the original was 100%, nothing happens.
         }
         return dist;
     }
     this.toString = function ()        {return "TypeTriggerArea with bodyObj="+bodyObj};
     this.IsActive = function ()        {return isActive;}
     this.Draw     = function () {}
-    
+
     //Initialization
     if      (arguments.length==3) {this.SetAsCircle(a,b,c);}
     else if (arguments.length==4) {this.SetAsRectangle(a,b,c,d);}
-    else if (arguments.length<=2 && a instanceof TypeCSSobject) {this.SetBodyObject(a); this.SetDOMtrigger(b);}
+    else if (arguments.length<=2 && a instanceof TypeCSSobject) {this.SetBodyObject(a); this.SetDOMtrigger(b); }
     else if (arguments.length<=2 && a && a.toString().toLowerCase().indexOf("html")>-1 && a.toString().toLowerCase().indexOf("element")>-1) {this.SetBodyObject(new TypeCSSobject(a)); this.SetDOMtrigger(b);}
+    
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------
 function TypeSpringCSS (thisObj,T,elast,fromP,toP,offset,moveFade) 
 {
 
     //Private Properties
-    var mountP;
-    var restP;
-    var travelVec;
-    var travelDist;
+    var mountP;         //Starting position under tension
+    var restP;          //Where it will end up at rest
+    var travelVec;      //From mount to rest positions
+    var travelDist;     //Length of the travel vector
     var objOffset;
     var slider;
     var targetObj;

@@ -1040,7 +1040,7 @@ function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentS
         if (isFailed) {Say('WARNING: (Draw) TypeCanvasWebGLpainter object is in a failed state',-1); return;}
         if (!isReady) {Say('WARNING: (Draw) TypeCanvasWebGLpainter object is not ready to draw (the shaders are probably still loading)',-1); return;}
         
-        let sceneObjCount  = sourceScene.GetObjectCount(); if (sceneObjCount==0) {Say('WARNING: (Draw) The scene has no geometry to draw',-1);}
+        let sceneObjCount  = sourceScene.GetObjectCount(); //if (sceneObjCount==0) {Say('WARNING: (Draw) The scene has no geometry to draw',-1);}
         let projViewMatrix = currentCamera.GetProjectionMatrix().MultiplyWith(currentCamera.GetViewMatrix()); //Note: ProjViewMatrix = ProjectionMatrix * ViewMatrix     
         let sceneDefaultAppearance = sourceScene.GetDefaultAppearance();
        
@@ -1513,7 +1513,7 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
             canvas2D.translate(pointLL.x,pointLL.y);
             canvas2D.rotate(angle); //screen coordinates angle
             canvas2D.drawImage(srfTexture.GetImageObj(),0,-height,width,height); 
-            canvas2D.resetTransform();
+            canvas2D.setTransform(1,0,0,1,0,0); //same as canvas2D.resetTransform();
             result.useFill = false;
             return result; //No paths are being defined (the canvas2D.fill() will have no effect)
         }
@@ -1545,7 +1545,7 @@ function TypeCanvas2Dpainter (scene,canvasIdString,clearColor)
         //Arrange all scene objects in Z-depth order 
         GenerateZdepthOrdering(); //Is checked repeatedly, but only acts if something in the scene has been edited
         
-        let xyPlanarObjCount       = zOrderedObjArr.length; if (xyPlanarObjCount==0) {Say('WARNING: (Draw) The scene has no 2D geometry to draw',-1);}
+        let xyPlanarObjCount       = zOrderedObjArr.length; //if (xyPlanarObjCount==0) {Say('WARNING: (Draw) The scene has no 2D geometry to draw',-1);}
         let scrProjViewMatrix      = currentCamera.GetViewportMatrix().MultiplyWith(currentCamera.GetProjectionMatrix()).MultiplyWith(currentCamera.GetViewMatrix()); //Note: ViewportMatrix * ProjectionMatrix * ViewMatrix     
         let sceneDefaultAppearance = sourceScene.GetDefaultAppearance();
 

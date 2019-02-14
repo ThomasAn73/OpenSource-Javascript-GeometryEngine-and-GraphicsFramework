@@ -501,6 +501,7 @@ function TypeXYZw (X,Y,Z,W)
    
    //Note: These properties were left public for the benefit of uncomplicated access
    //Note: On the downside, client functions could assign all kinds of garbage here. Normally these would be strongly typed (like in C++)
+   //Note: These properties are not really empty. They are initialized to X,Y,Z,W at the bottom of this class with the SetEqualTo function
    this.x;
    this.y;
    this.z;
@@ -583,6 +584,7 @@ function TypeXYZw (X,Y,Z,W)
    this.toString       = function ()          {return '[Object TypeXYZw]->('+this.x+','+this.y+','+this.z+','+this.w+')';}
    
    //This methods are destructive
+   this.SetTolerance   = function (newE) {epsilon = (isNaN(newE))? epsilon : Number(newE); return this;}
    this.SetInt         = function (dim)  {if (dim===void(0)){dim=4;} if (dim>0) {this.x = Math.floor(this.x);} if (dim>1) {this.y = Math.floor(this.y);} if (dim>2) {this.z = Math.floor(this.z);} if (dim>3) {this.w = Math.floor(this.w);}}
    this.SetMax         = function (v)    {if (!(v instanceof TypeXYZw)) {return this;} if (v.x>this.x) {this.x = v.x;} if (v.y>this.y) {this.y = v.y;} if (v.z>this.z) {this.z = v.z;} return this;}
    this.SetMin         = function (v)    {if (!(v instanceof TypeXYZw)) {return this;} if (v.x<this.x) {this.x = v.x;} if (v.y<this.y) {this.y = v.y;} if (v.z<this.z) {this.z = v.z;} return this;}
