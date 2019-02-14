@@ -985,7 +985,7 @@ function TypeCanvasWebGLpainter (scene,canvasIdString,vertexShaderPath,fragmentS
     this.IsFailed       = function ()   {return isFailed;}
     this.IsStillLoading = function ()   {return !(isReady || isFailed);}
     this.OperateCamera  = function (theMouseState)
-    {   //This menthod controls viewport behavior
+    {   //This menthod controls viewport behavior (should move this functionality to the camera operator object in the future)
         if (!(theMouseState instanceof Object 
            && theMouseState.hasOwnProperty('delta') 
            && theMouseState.hasOwnProperty('buttonState') 
