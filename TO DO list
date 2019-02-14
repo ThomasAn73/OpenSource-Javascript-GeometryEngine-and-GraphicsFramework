@@ -10,7 +10,7 @@
 
 - Implement collision detection
 
-- Improve the shaders to allow for more complex effects (reflections, shadows, etc)
+- Improve the shaders to allow for more complex effects (reflections, shadows, etc) and compute more than one lights
 
 - Move the viewport oparation from the TypeWebGLpainter and into the TypeCameraOperator object.
 
