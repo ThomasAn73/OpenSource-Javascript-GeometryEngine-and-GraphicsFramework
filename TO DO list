@@ -1,0 +1,19 @@
+- Complete the Delauney triangulation object and use it in the TypeSurface object to create meshes from arbitrary planar curve boundaries.
+
+- Expand the construction history functionality in TypeSurface to include extrusions, volumes of revolution from profile curves, lofts, etc
+
+- Include more high level "add" methods in the TypeSurface object to create primitive geometric shapes such as spheres, cubes, cones, (and do so parametrically, using curve objects as foundation)
+
+- Add text functionality to the TypeWebGLpainter object. It should be able to read the TypeText objects and generate either text curves or use textures for each character
+
+- Implement a grouping mechanism for sceneObjects. Group objects should have their own kinematics.
+
+- Implement collision detection
+
+- Improve the shaders to allow for more complex effects (reflections, shadows, etc)
+
+- Move the viewport oparation from the TypeWebGLpainter and into the TypeCameraOperator object.
+
+- Expand the TypeCameraOperator for more advanced camera movements (eg. following curve paths, like in a roller coaster)
+
+- Expand on the particles idea inside the TypeCurve object for particle systems (fluid, smoke, clouds, etc)
