@@ -5,7 +5,7 @@ A framework that abstracts away from canvas2D and WebGL and is able to handle bo
 * A brief explation outlining the deisgn concet is shown --> [here](https://github.com/ThomasAn73/Javascript-Graphics-Framework/blob/master/CONCEPTUAL%20OUTLINE%20of%20this%20Framework.pdf)
 * A preliminary ToDO list can be seen --> [here](https://github.com/ThomasAn73/Javascript-Graphics-Framework/blob/master/TO%20DO%20list)
 * An example "HelloWorld" project can be seen --> [here](https://github.com/ThomasAn73/Javascript-Graphics-Framework/blob/master/EXAMPLE.zip)
-Extract the ZIP file into a folder, drop the JS files and the two shader files into the same folder and run the Example.html 
+Extract the ZIP file into a folder, drop the JS files and the two glsl shader files into the same folder and run the Example.html 
 
 ![Screenshot01](http://rayflectar.com/p04-Programming/images/Rcube00-min.jpg)
 ![Screenshot02](http://rayflectar.com/p04-Programming/images/Rcube04-min.jpg)
