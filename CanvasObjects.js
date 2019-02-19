@@ -137,7 +137,7 @@ function TypeCanvasText (thisText,txtSize,txtFont,atX,atY,txtColor,txtAlign,txtB
       textRectangle[1] = [textRectangle[0][0]+txtLen,textRectangle[0][1]-this.textSize];
       
       //Display the background rounded rectangle
-      if (this.useBackground = true)
+      if (this.useBackground == true)
       {
          ctx.beginPath();
          ctx.moveTo (textRectangle[0][0],textRectangle[0][1]+this.backPadding);
