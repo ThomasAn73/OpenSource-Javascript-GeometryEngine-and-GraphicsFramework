@@ -81,7 +81,7 @@ function TypeEdge (n1,n2,w)
     
     this.SetNodeA  = function (newNode) {nodeA=newNode;}
     this.SetNodeB  = function (newNode) {nodeB=newNode;}
-    this.SetWeight = function ()        {weight = w;}
+    this.SetWeight = function (w)       {weight = w;}
     
     this.toString  = function ()
     {
