@@ -8,7 +8,7 @@
 
 - Implement a grouping mechanism for sceneObjects. Group objects should have their own kinematics.
 
-- Implement collision detection
+- Implement collision detection (eg scene --> method --> IsCollided (obj1, obj2))
 
 - Improve the shaders to allow for more complex effects (reflections, shadows, etc) and compute more than one lights
 
