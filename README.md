@@ -1,5 +1,5 @@
 # Javascript Geometry Engine and Graphics framework
-A geometry engine and graphics framework that abstracts away from canvas2D and WebGL and is able to handle either onw transparent to the programmer
+A geometry engine and graphics framework that abstracts away from canvas2D and WebGL and is able to handle either one transparent to the programmer
 * The following example game implements this framework on Canvas2D -> [Example1](http://www.rayflectar.com/p03-Concepts/p03-MathMoth/game.html) 
 * The following example game implements this framework on Canvas WebGL -> [Example2](http://www.rayflectar.com/p04-Programming/p01-Rubik/rubik.html)
 
